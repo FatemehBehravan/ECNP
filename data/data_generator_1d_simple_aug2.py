@@ -273,7 +273,7 @@ class SinusoidCurve(object):
         target_x = target_x.to(device)
         target_y = target_y.to(device)
         task_property = task_property.to(device)
-
+        print(task_property)
         query = ((context_x, context_y), target_x)
 
         return NPRegressionDescription(
@@ -283,3 +283,7 @@ class SinusoidCurve(object):
             num_context_points=num_context,
             task_defn=task_property
         )
+
+
+
+

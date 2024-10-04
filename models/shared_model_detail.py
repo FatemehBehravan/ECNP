@@ -58,8 +58,8 @@ elif args.dataset.lower() == '1d-sin':
     from data.data_generator_1d_simple_aug2 import SinusoidCurve as generator
 elif args.dataset.lower() == 'gp':
     from data.data_generator_1d_simple_aug2 import GPCurvesReader as generator
-elif args.dataset.lower() == 'XAUUSD':
-    from data.xauusd_data import DatasetReader as generator
+elif args.dataset == 'XAUUSD':
+    from data.xauusd_data import NumericDataset as generator
 else:
     print("Unknown dataset: ", args.dataset)
     raise NotImplementedError

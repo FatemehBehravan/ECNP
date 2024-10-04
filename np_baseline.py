@@ -57,7 +57,7 @@ save_to_txt_file(f"{save_to_dir}/model_details.txt", details_txt, 0, "Saved Deta
 
 from utilFiles.helper_functions_shared import save_results
 
-
+task == "1d_regression"
 if task == "image_completion":
     from plot_functions.plot_2d_image_completion_aug8 import plot_functions_3d
     #Make context set and target set from the image
@@ -67,8 +67,9 @@ elif task == "1d_regression":
     training_iterations = int(args.training_iterations)
     save_models_every = training_iterations//10
 else:
-    print("Unknown problem")
-    raise NotImplementedError
+    from utilFiles.util_plot_all import plot_functions_alea_ep_1d
+    training_iterations = int(args.training_iterations)
+    save_models_every = training_iterations//10
 
 
 logging_dict, logging_dict_all = {}, []
@@ -84,7 +85,7 @@ def test_model_and_save_results(epoch, tr_time_taken = 0):
 
     with torch.no_grad():
         model.eval()
-
+        task == "1d_regression"
         if task == "1d_regression":
             looping_variable = range(args.num_test_tasks)
         elif task == "image_completion":
@@ -166,6 +167,7 @@ def test_model_and_save_results(epoch, tr_time_taken = 0):
 
     logging_dict, logging_dict_all = save_results(logging_dict, logging_dict_all, keys, values, save_to_dir)
 
+    task == "1d_regression"
     # Save Images
     if task == "1d_regression":
         (context_x, context_y), target_x = data_test.query
