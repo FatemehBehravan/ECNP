@@ -97,9 +97,12 @@ def test_model_and_save_results(epoch, tr_time_taken = 0):
             optimizer.zero_grad()
 
             if task == "1d_regression":
-                index = loop_item
-                data_test = dataset_test.generate_curves(device=device, fixed_num_context=args.max_context_points)
-                query, target_y = data_test.query, data_test.target_y
+                index, (batch_x, batch_label) = loop_item
+                batch_x = batch_x.to(device)
+                batch_label = batch_label.to(device)
+                query = batch_x
+                target_y = batch_label
+                context_mask = None
 
             elif task == "image_completion":
                 index, (batch_x, batch_label) = loop_item

@@ -34,17 +34,3 @@ class NumericDataset(Dataset):
             X = self.transform(X)
 
         return torch.tensor(X), torch.tensor(y)
-
-# Example usage of the NumericDataset class
-file_path = '/content/XAUUSD15_Data.csv'
-
-# Specify the feature and label columns
-feature_columns = ['date', 'open']  # replace with your feature column names
-label_columns = ['close', 'low', 'high']  # replace with your label column names
-
-# Create an instance of the dataset
-numeric_dataset = NumericDataset(file_path=file_path, features=feature_columns, labels=label_columns)
-
-# Create a DataLoader for batching
-data_loader = DataLoader(numeric_dataset, batch_size=32, shuffle=True)
-
