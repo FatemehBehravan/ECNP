@@ -1,6 +1,12 @@
 import pandas as pd
 import torch
 from torch.utils.data import Dataset, DataLoader
+import collections
+
+NPRegressionDescription = collections.namedtuple(
+    "NPRegressionDescription",
+    ("query", "target_y", "num_total_points", "num_context_points","task_defn")
+)
 
 class NumericDataset(Dataset):
     def __init__(self, file_path, features, labels, transform=None):

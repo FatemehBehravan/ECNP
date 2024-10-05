@@ -19,7 +19,7 @@ d_x, d_in, representation_size = 2, channels + 2, int(args.representation_size)
 latent_encoder_sizes = [d_in] + [HIDDEN_SIZE] * 4 + [representation_size]
 determministic_encoder_sizes = [d_in] + [HIDDEN_SIZE] * 4 + [representation_size]
 
-if args.dataset.lower() == '1d-sin' or args.dataset.lower() == 'gp':
+if args.dataset.lower() == '1d-sin' or args.dataset.lower() == 'gp' or args.dataset.lower() == 'xauusd':
     channels = 1
     d_x, d_in, representation_size = 1, channels + 1, int(args.representation_size)
     # Encoder, decoder sizes
@@ -58,14 +58,14 @@ elif args.dataset.lower() == '1d-sin':
     from data.data_generator_1d_simple_aug2 import SinusoidCurve as generator
 elif args.dataset.lower() == 'gp':
     from data.data_generator_1d_simple_aug2 import GPCurvesReader as generator
-elif args.dataset == 'XAUUSD':
+elif args.dataset.lower() == 'xauusd':
     from data.xauusd_data import NumericDataset as generator
 else:
     print("Unknown dataset: ", args.dataset)
     raise NotImplementedError
 
-task = "1d_regression"
-if args.dataset.lower() in ['1d-sin', 'gp']:
+
+if args.dataset.lower() in ['1d-sin', 'gp', 'xauusd']:
     task = "1d_regression"
 elif args.dataset.lower() in ['mnist', 'celeba', 'cifar10']:
     task = "image_completion"
