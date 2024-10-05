@@ -100,8 +100,8 @@ def test_model_and_save_results(epoch, tr_time_taken = 0):
             if task == "1d_regression":
                 index, (batch_x, batch_label) = loop_item
                 batch_x = batch_x.to(device)
-                query, target_y, context_mask = get_context_target_1d(batch_x, num_ctx_pts=args.max_context_points)
-
+                query, target_y, context_mask = get_context_target_1d(batch_x, features=feature_columns, labels=label_columns, device=device, fixed_num_context=args.max_context_points)
+                                                        
             elif task == "image_completion":
                 index, (batch_x, batch_label) = loop_item
                 batch_x = batch_x.to(device)
