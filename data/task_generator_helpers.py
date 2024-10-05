@@ -4,7 +4,9 @@ import pandas as pd
 from models.image_completion_helpers import the_image_grid, make_context_mask
 
 
-def get_context_target_1d(data, features, labels, device, fixed_num_context=-1):
+def get_context_target_1d(data, device, features=['date', 'open'], labels=['close'], fixed_num_context=-1):
+    if not isinstance(data, pd.DataFrame):
+          raise ValueError("The input 'data' must be a pandas DataFrame.")
     if fixed_num_context > 0:
         num_context = fixed_num_context
     else:

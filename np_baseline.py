@@ -3,6 +3,7 @@ import torch.optim as optim
 import torch.nn.functional as F
 import time
 import numpy as np
+import pandas as pd
 
 # All the arguments here
 from utilFiles.get_args import the_args
@@ -99,13 +100,16 @@ def test_model_and_save_results(epoch, tr_time_taken = 0):
 
             if task == "1d_regression":
                 index, (batch_x, batch_label) = loop_item
+                batch_x = pd.DataFrame(batch_x.cpu().numpy(), columns=['date', 'open']) 
                 batch_x = batch_x.to(device)
-                query, target_y, context_mask = get_context_target_1d(batch_x, features=feature_columns, labels=label_columns, device=device, fixed_num_context=args.max_context_points)
+                query, target_y, context_mask = get_context_target_1d(databatch_x, device=device, fixed_num_context=args.max_context_points)
                 print('hello')                                        
             elif task == "image_completion":
                 index, (batch_x, batch_label) = loop_item
-                batch_x = batch_x.to(device)
-                query, target_y, context_mask, _ = get_context_target_2d(batch_x, num_ctx_pts=args.max_context_points)
+                batch_x = pd.DataFrame(batch_x.cpu().numpy(), columns=['date', 'open']) 
+                batch_x_tensor = torch.tensor(batch_x.values, dtype=torch.float32)
+                batch_x_tensor = batch_x_tensor.to(device)
+                query, target_y, context_mask, _ = get_context_target_2d(batch_x_tensor, num_ctx_pts=args.max_context_points)
 
             if args.use_latent_path:
                 mu = 0
