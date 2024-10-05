@@ -3,6 +3,45 @@ import random
 from models.image_completion_helpers import the_image_grid, make_context_mask
 
 
+def get_context_target_1d(data, features, labels, device, num_ctx_pts=-1, is_Test_Time=False):
+    
+    # Extract features (X) and labels (y) from the dataset
+    X = data[features].values
+    y = data[labels].values
+    num_total_points = X.shape[0]
+
+    # Determine the number of context points
+    if num_ctx_pts == -1:
+        num_context_points = random.randint(3, 100)
+    else:
+        num_context_points = num_ctx_pts
+
+    # Determine the number of target points
+    if is_Test_Time:
+        num_target_points = num_total_points - num_context_points
+    else:
+        num_target_points = num_total_points - num_context_points
+
+    # Create random indices for context and target points
+    idx = torch.randperm(num_total_points)
+    context_idx = idx[:num_context_points]
+    target_idx = idx[:num_context_points + num_target_points]
+
+    # Create context and target sets
+    context_x = torch.tensor(X[context_idx], dtype=torch.float32).to(device)
+    context_y = torch.tensor(y[context_idx], dtype=torch.float32).to(device)
+
+    target_x = torch.tensor(X[target_idx], dtype=torch.float32).to(device)
+    target_y = torch.tensor(y[target_idx], dtype=torch.float32).to(device)
+
+    # Create context mask (optional, depending on how it's used)
+    context_mask = torch.zeros(num_total_points).bool().to(device)
+    context_mask[context_idx] = True
+
+    # Return the context and target points in the same format as `get_context_target_2d`
+    return ((context_x, context_y), target_x), target_y, context_mask
+
+
 def get_context_target_2d(image_batch, num_ctx_pts = -1, is_Test_Time = False):
     bs, c, h, w = image_batch.size()
     device = image_batch.device

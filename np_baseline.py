@@ -65,6 +65,8 @@ elif task == "1d_regression":
     from utilFiles.util_plot_all import plot_functions_alea_ep_1d
     training_iterations = int(args.training_iterations)
     save_models_every = training_iterations//10
+    #Make context set and target set from the image
+    from data.task_generator_helpers import get_context_target_1d
 else:
     from utilFiles.util_plot_all import plot_functions_alea_ep_1d
     training_iterations = int(args.training_iterations)
@@ -86,7 +88,7 @@ def test_model_and_save_results(epoch, tr_time_taken = 0):
         model.eval()
         task == "1d_regression"
         if task == "1d_regression":
-            looping_variable = range(args.num_test_tasks)
+            looping_variable = enumerate(dataset_test)
         elif task == "image_completion":
             looping_variable = enumerate(dataset_test)
 
@@ -96,10 +98,10 @@ def test_model_and_save_results(epoch, tr_time_taken = 0):
             optimizer.zero_grad()
 
             if task == "1d_regression":
-                index = loop_item
-                data_test = dataset_test.get_context_target(device=device, fixed_num_context=args.max_context_points)
-                query, target_y = data_test.query, data_test.target_y
-                
+                index, (batch_x, batch_label) = loop_item
+                batch_x = batch_x.to(device)
+                query, target_y, context_mask = get_context_target_1d(batch_x, num_ctx_pts=args.max_context_points)
+
             elif task == "image_completion":
                 index, (batch_x, batch_label) = loop_item
                 batch_x = batch_x.to(device)
