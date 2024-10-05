@@ -1,5 +1,6 @@
 import torch
 import random
+import pandas as pd
 from models.image_completion_helpers import the_image_grid, make_context_mask
 
 
@@ -8,6 +9,12 @@ def get_context_target_1d(data, features, labels, device, fixed_num_context=-1):
         num_context = fixed_num_context
     else:
         num_context = torch.randint(low=3, high=self.max_num_context + 1, size=(1,)).item()
+
+
+    for feature in features:
+        if feature in data.columns:
+            data[feature] = pd.to_numeric(data[feature], errors='coerce')
+    data.dropna(subset=features + labels, inplace=True)
 
     X = data[features].to_numpy()
     y = data[labels].to_numpy()

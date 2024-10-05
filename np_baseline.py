@@ -101,7 +101,7 @@ def test_model_and_save_results(epoch, tr_time_taken = 0):
                 index, (batch_x, batch_label) = loop_item
                 batch_x = batch_x.to(device)
                 query, target_y, context_mask = get_context_target_1d(batch_x, features=feature_columns, labels=label_columns, device=device, fixed_num_context=args.max_context_points)
-                                                        
+                print('hello')                                        
             elif task == "image_completion":
                 index, (batch_x, batch_label) = loop_item
                 batch_x = batch_x.to(device)
