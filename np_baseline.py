@@ -57,7 +57,6 @@ save_to_txt_file(f"{save_to_dir}/model_details.txt", details_txt, 0, "Saved Deta
 
 from utilFiles.helper_functions_shared import save_results
 
-task == "1d_regression"
 if task == "image_completion":
     from plot_functions.plot_2d_image_completion_aug8 import plot_functions_3d
     #Make context set and target set from the image
@@ -97,13 +96,10 @@ def test_model_and_save_results(epoch, tr_time_taken = 0):
             optimizer.zero_grad()
 
             if task == "1d_regression":
-                index, (batch_x, batch_label) = loop_item
-                batch_x = batch_x.to(device)
-                batch_label = batch_label.to(device)
-                query = batch_x
-                target_y = batch_label
-                context_mask = None
-
+                index = loop_item
+                data_test = dataset_test.get_context_target(device=device, fixed_num_context=args.max_context_points)
+                query, target_y = data_test.query, data_test.target_y
+                
             elif task == "image_completion":
                 index, (batch_x, batch_label) = loop_item
                 batch_x = batch_x.to(device)
