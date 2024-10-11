@@ -76,12 +76,13 @@ if task == "image_completion":
     # Test dataset
     dataset_test = DataLoader(ImageLoader("test"),batch_size=1,shuffle=True)
 elif task == "1d_regression":
-    file_path_train = '/content/ECNP/datasets/XAUUSD/train/train_data.csv'
-    file_path_test = '/content/ECNP/datasets/XAUUSD/test/test_data.csv'
-    feature_columns = ['date', 'open']
+    file_path_train = './datasets/XAUUSD/train/train_data.csv'
+    file_path_test = './datasets/XAUUSD/test/test_data.csv'
+    feature_columns = [ 'open']
     label_columns = ['close']
-    train_dataset = generator(file_path=file_path_train, features=feature_columns, labels=label_columns, testing=False)
-    test_dataset = generator(file_path=file_path_test, features=feature_columns, labels=label_columns, testing=False)
-
-    dataset_train = DataLoader(train_dataset, batch_size=args.batch_size, shuffle=True)
-    dataset_test = DataLoader(test_dataset, batch_size=1, shuffle=True)
+    print("generating data")
+    dataset_train = generator(file_path=file_path_train,max_num_context=50, features=feature_columns, labels=label_columns, testing=False)
+    dataset_test = generator(file_path=file_path_test,max_num_context=50, features=feature_columns, labels=label_columns, testing=True)
+    # dataset_train = DataLoader(train_dataset, batch_size=args.batch_size, shuffle=True)
+    # dataset_test = DataLoader(test_dataset, batch_size=1, shuffle=True)
+    print("generating done")

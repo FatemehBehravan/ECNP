@@ -8,7 +8,7 @@ def the_args():
 
     parser.add_argument('-test_1d_every', '--test_1d_every', type=int, default=2000,
                         help='How often to save  test, logs, and save figures (iteration for 1d)')
-    parser.add_argument('-save_results_every', '--save_results_every', type=int, default=1,
+    parser.add_argument('-save_results_every', '--save_results_every', type=int, default=10,
                         help='How often to save logs/figures (epoch for 2d, iteration for 1d)')
     parser.add_argument('-num_test_tasks', '--num_test_tasks', type=int, default=2000,
                         help='Number of test tasks to average on (only 1d)')

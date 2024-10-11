@@ -88,55 +88,33 @@ def test_model_and_save_results(epoch, tr_time_taken = 0):
     with torch.no_grad():
         model.eval()
         task == "1d_regression"
-        if task == "1d_regression":
-            looping_variable = enumerate(dataset_test)
-        elif task == "image_completion":
-            looping_variable = enumerate(dataset_test)
+
+        looping_variable = enumerate(dataset_test)
 
         for loop_item in looping_variable:
+            # print(loop_item)
             model.eval()
             model.zero_grad()
             optimizer.zero_grad()
 
-            if task == "1d_regression":
-                test_dataset = dataset_test.dataset if isinstance(dataset_test, DataLoader) else dataset_test
-                data_test = test_dataset.get_context_target(device=device, fixed_num_context=args.max_context_points)
-                query, target_y = data_test.query, data_test.target_y
-                context_x, context_y = query[0]
-                target_x = query[1]
-                print(f"context_x shape: {context_x.shape}")
-                print(f"context_y shape: {context_y.shape}")
-                print(f"target_x shape: {target_x.shape}")
-                print(f"target_y shape: {target_y.shape}")
+
+            test_dataset = dataset_test.dataset if isinstance(dataset_test, DataLoader) else dataset_test
+            data_test = test_dataset.get_context_target(device=device, fixed_num_context=args.max_context_points)
+            query, target_y = data_test.query, data_test.target_y
+            context_x, context_y = query[0]
+            target_x = query[1]
+                # print(f"context_x shape: {context_x.shape}")
+                # print(f"context_y shape: {context_y.shape}")
+                # print(f"target_x shape: {target_x.shape}")
+                # print(f"target_y shape: {target_y.shape}")
                                                       
-            elif task == "image_completion":
-                index, (batch_x, batch_label) = loop_item
-                batch_x = pd.DataFrame(batch_x.cpu().numpy(), columns=['date', 'open']) 
-                batch_x_tensor = torch.tensor(batch_x.values, dtype=torch.float32)
-                batch_x_tensor = batch_x_tensor.to(device)
-                query, target_y, context_mask, _ = get_context_target_2d(batch_x_tensor, num_ctx_pts=args.max_context_points)
 
-            if args.use_latent_path:
-                mu = 0
-                lat_log_likelihood = 0
-                means = []
-                variances = []
-                num_mc_test_samples = 5
-                for _ in range(num_mc_test_samples):
-                    dist, m, sigma, log_p, kl, loss = model(query, None)
-                    lat_log_likelihood += torch.mean(dist.log_prob(target_y))
-                    mu += m
-                    means.append(m)
-                    variances.append(sigma)
-                mu /= num_mc_test_samples
-                lat_log_likelihood /= num_mc_test_samples
-                total_log_likelihood += lat_log_likelihood
 
-            else:
-                dist, mu, sigma, log_p, kl, loss = model(query, None)
-                total_log_likelihood += torch.mean(dist.log_prob(target_y))
-                means = [mu for _ in range(5)]
-                variances = [sigma for _ in range(5)]
+
+            dist, mu, sigma, log_p, kl, loss = model(query, None)
+            total_log_likelihood += torch.mean(dist.log_prob(target_y))
+            means = [mu for _ in range(5)]
+            variances = [sigma for _ in range(5)]
 
             stack_means = torch.stack(means)
             # print("means: ", means, means.shape)
@@ -226,27 +204,37 @@ def one_iteration_training(query, target_y):
     optimizer.step()
 
 def train_1d_regression(tr_time_end = 0, tr_time_start=0):
+
     for tr_index in range(args.training_iterations+1):
+
         save_tracker_val = tr_index % args.test_1d_every
-        if save_tracker_val == 0 or tr_index == args.training_iterations:
+        if tr_index % args.save_results_every == 0 or tr_index == args.epochs - 1:
             tr_time_taken = tr_time_end - tr_time_start
+            # print("ss")
             average_test_loss = test_model_and_save_results(tr_index, tr_time_taken)
-
-            save_model(f"{save_to_dir}/saved_models/model_{tr_index}.pth", model)
+            # print("ss")
+            save_model(f"./saved_models/model_{tr_index}.pth", model)
             tr_time_start = time.time()
-        # Training phase
-        data_train = dataset_train.generate_curves(device=device, fixed_num_context=args.max_context_points)
-        query, target_y = data_train.query, data_train.target_y
+        # Test the model
+        # if tr_index % args.save_results_every == 0 or tr_index == args.epochs - 1:
+        #     tr_time_taken = tr_time_end - tr_time_start
+        #     average_test_loss = test_model_and_save_results(tr_index, tr_time_taken)
 
-        if args.outlier_training_tasks:
-            bs, y_len, dim_3 = target_y.shape
+        # print("here")
+        model.train()
+        for idx, (query,target_y) in enumerate(dataset_train):
+            model.zero_grad()
+            optimizer.zero_grad()
 
-            y_dim = torch.argmax(torch.rand(bs, y_len), dim = 1).numpy()
+            if args.outlier_training_tasks:
+                bs, y_len, dim_3 = target_y.shape
 
-            for i in range(bs):
-                target_y[i, y_dim[i], 0] += args.outlier_val  # noise_val
+                y_dim = torch.argmax(torch.rand(bs, y_len), dim=1).numpy()
 
-        one_iteration_training(query, target_y)
+                for i in range(bs):
+                    target_y[i, y_dim[i], :] += args.outlier_val  # noise_val
+
+            one_iteration_training(query, target_y)
 
         tr_time_end = time.time()
 
