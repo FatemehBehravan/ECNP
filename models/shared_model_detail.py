@@ -80,8 +80,8 @@ elif task == "1d_regression":
     file_path_test = '/content/ECNP/datasets/XAUUSD/test/test_data.csv'
     feature_columns = ['date', 'open']
     label_columns = ['close']
-    train_dataset = generator(file_path=file_path_train, features=feature_columns, labels=label_columns)
-    test_dataset = generator(file_path=file_path_test, features=feature_columns, labels=label_columns)
+    train_dataset = generator(file_path=file_path_train, features=feature_columns, labels=label_columns, testing=False)
+    test_dataset = generator(file_path=file_path_test, features=feature_columns, labels=label_columns, testing=False)
 
     dataset_train = DataLoader(train_dataset, batch_size=args.batch_size, shuffle=True)
     dataset_test = DataLoader(test_dataset, batch_size=1, shuffle=True)

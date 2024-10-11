@@ -99,11 +99,16 @@ def test_model_and_save_results(epoch, tr_time_taken = 0):
             optimizer.zero_grad()
 
             if task == "1d_regression":
-                index, (batch_x, batch_label) = loop_item
-                batch_x = pd.DataFrame(batch_x.cpu().numpy(), columns=['date', 'open']) 
-                batch_x = batch_x.to(device)
-                query, target_y, context_mask = get_context_target_1d(databatch_x, device=device, fixed_num_context=args.max_context_points)
-                print('hello')                                        
+                test_dataset = dataset_test.dataset if isinstance(dataset_test, DataLoader) else dataset_test
+                data_test = test_dataset.get_context_target(device=device, fixed_num_context=args.max_context_points)
+                query, target_y = data_test.query, data_test.target_y
+                context_x, context_y = query[0]
+                target_x = query[1]
+                print(f"context_x shape: {context_x.shape}")
+                print(f"context_y shape: {context_y.shape}")
+                print(f"target_x shape: {target_x.shape}")
+                print(f"target_y shape: {target_y.shape}")
+                                                      
             elif task == "image_completion":
                 index, (batch_x, batch_label) = loop_item
                 batch_x = pd.DataFrame(batch_x.cpu().numpy(), columns=['date', 'open']) 
