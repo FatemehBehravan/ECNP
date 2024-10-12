@@ -1,0 +1,2 @@
+Epoch,Test Loss,Test Log Likelihood,Epistemic,Aleatoric,Train Time,Test Time
+0,3353888.5,-167694336.0,0.0,0.1000000610947609,0,1.3204138278961182

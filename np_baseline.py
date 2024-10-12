@@ -213,7 +213,7 @@ def train_1d_regression(tr_time_end = 0, tr_time_start=0):
             # print("ss")
             average_test_loss = test_model_and_save_results(tr_index, tr_time_taken)
             # print("ss")
-            save_model(f"./saved_models/model_{tr_index}.pth", model)
+            save_model(f"{save_to_dir}/saved_models/model_{tr_index}.pth", model)
             tr_time_start = time.time()
         # Test the model
         # if tr_index % args.save_results_every == 0 or tr_index == args.epochs - 1:
