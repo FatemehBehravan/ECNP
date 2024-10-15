@@ -87,9 +87,9 @@ def test_model_and_save_results(epoch, tr_time_taken = 0):
 
     with torch.no_grad():
         model.eval()
-        task == "1d_regression"
+
         if task == "1d_regression":
-            looping_variable = enumerate(dataset_test)
+            looping_variable = range(args.num_test_tasks)
         elif task == "image_completion":
             looping_variable = enumerate(dataset_test)
 
@@ -99,15 +99,13 @@ def test_model_and_save_results(epoch, tr_time_taken = 0):
             optimizer.zero_grad()
 
             if task == "1d_regression":
-                test_dataset = dataset_test.dataset if isinstance(dataset_test, DataLoader) else dataset_test
-                data_test = test_dataset.get_context_target(device=device, fixed_num_context=args.max_context_points)
+                index = loop_item
+                data_test = dataset_test.generate_curves(device=device, fixed_num_context=args.max_context_points)
                 query, target_y = data_test.query, data_test.target_y
-                context_x, context_y = query[0]
-                target_x = query[1]
-                print(f"context_x shape: {context_x.shape}")
-                print(f"context_y shape: {context_y.shape}")
-                print(f"target_x shape: {target_x.shape}")
-                print(f"target_y shape: {target_y.shape}")
+                # print(f"context_x shape: {context_x.shape}")
+                # print(f"context_y shape: {context_y.shape}")
+                # print(f"target_x shape: {target_x.shape}")
+                # print(f"target_y shape: {target_y.shape}")
                                                       
             elif task == "image_completion":
                 index, (batch_x, batch_label) = loop_item
@@ -228,10 +226,10 @@ def one_iteration_training(query, target_y):
 def train_1d_regression(tr_time_end = 0, tr_time_start=0):
     for tr_index in range(args.training_iterations+1):
         save_tracker_val = tr_index % args.test_1d_every
-        if save_tracker_val == 0 or tr_index == args.training_iterations:
+        if save_tracker_val == 0 or tr_index == args.epochs - 1:
             tr_time_taken = tr_time_end - tr_time_start
             average_test_loss = test_model_and_save_results(tr_index, tr_time_taken)
-
+            print("ss")
             save_model(f"{save_to_dir}/saved_models/model_{tr_index}.pth", model)
             tr_time_start = time.time()
         # Training phase
