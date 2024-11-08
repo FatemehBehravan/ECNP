@@ -44,7 +44,9 @@ class NumericDataset(object):
             data.dropna(subset=['date', 'open', 'close'], inplace=True)
             data['date'] = pd.to_datetime(data['date'], errors='coerce')
             data = data[data.date > '2024-01-01']
-            data['date'] = data['date'].astype(int) / 10**9
+            base_date = data['date'].min()
+            data['date'] = (data['date'] - base_date).dt.total_seconds()
+            data['date'] = data['date'].astype(int)
             #data['open'] = data['open'].astype(int)
             data['colse'] = data['close'].astype(int)
             
