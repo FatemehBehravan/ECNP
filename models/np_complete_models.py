@@ -211,11 +211,8 @@ class Evd_det_model(np_model):
                     dist_based_reg = calc_ev_krnl_reg(target_x, context_x, v, lambda_ker=self.args.nig_nll_ker_reg_coef)
                     loss += dist_based_reg
                 loss += loss_det
-        print('beta must be positive')
         assert torch.all(beta > 0), "beta must be positive."
-        print('v must be positive')
         assert torch.all(v > 0), "v must be positive."
-        print('alpha must be positive')
         assert torch.all(alpha > 0), "alpha must be positive."
         df = 2 * alpha
         loc = mu
