@@ -286,7 +286,7 @@ class ANPEvidentialDecoder(nn.Module):
         self.transform_beta = nn.Sequential(nn.ReLU(), nn.Linear(output_sizes[-2], 64), nn.ReLU(),
                                              nn.Linear(64, args.channels))
     def evidence(self, x):
-        return F.softplus(x)
+        return F.softplus(x) + 1e-6
 
     def forward(self, representation, target_x):
         batch_size, set_size, d = target_x.shape
