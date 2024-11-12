@@ -35,7 +35,7 @@ class NumericDataset(object):
 
 
 
-    def generate_curves(self, device, fixed_num_context=-1):
+    def generate_curves(self, device, fixed_num_context):
         file_path_train = './datasets/XAUUSD/train/train_data.csv'
         file_path_test = './datasets/XAUUSD/test/test_data.csv'
 
@@ -43,7 +43,7 @@ class NumericDataset(object):
             data = pd.read_csv(file_path)
             data.dropna(subset=['date', 'open', 'close'], inplace=True)
             data['date'] = pd.to_datetime(data['date'], errors='coerce')
-            data = data[data.date > '2024-01-01']
+            # data = data[data.date > '2024-01-01']
             base_date = data['date'].min()
             data['date'] = (data['date'] - base_date).dt.total_seconds()
             data['date'] = data['date'].astype(int)
@@ -73,7 +73,7 @@ class NumericDataset(object):
         step = 16
         
         if self._testing:
-            num_total_points = 50
+            num_total_points = 20
             num_target = num_total_points
             
             # print(self.start_index)
