@@ -5,10 +5,7 @@ import random
 import os
 import pandas as pd
 
-NPRegressionDescription = collections.namedtuple(
-    "NPRegressionDescription",
-    ("query", "target_y", "num_total_points", "num_context_points","task_defn")
-)
+NPRegressionDescription = collections.namedtuple("NPRegressionDescription",("query", "target_y", "num_total_points", "num_context_points","task_defn"))
 
 
 
@@ -31,128 +28,68 @@ class NumericDataset(object):
         self._testing = testing
         self._device=device
         self.start_index = 0
-        
 
 
 
-    def generate_curves(self, device, fixed_num_context):
-        file_path_train = './datasets/XAUUSD/train/train_data.csv'
-        file_path_test = './datasets/XAUUSD/test/test_data.csv'
+
+    def generate_curves(self, device, fixed_num_context=-1):
+
 
         def load_csv_data(file_path):
             data = pd.read_csv(file_path)
-            data.dropna(subset=['date', 'open', 'close'], inplace=True)
-            data['date'] = pd.to_datetime(data['date'], errors='coerce')
-            # data = data[data.date > '2024-01-01']
-            base_date = data['date'].min()
-            data['date'] = (data['date'] - base_date).dt.total_seconds()
-            data['date'] = data['date'].astype(int)
+            data['counter'] = data['counter'].astype(int)
             #data['open'] = data['open'].astype(int)
             data['colse'] = data['close'].astype(int)
-            
-            x = data['date'].values
-            y = data['close'].values
+            data['MA'] = data['close'].rolling(window=100).mean()
+            data = data.tail(400)
+
+            x = data['counter'].values
+            y = data['MA'].values
             return x, y
 
-        
-        base_path = 'datasets/XAUUSD/'
-        x_train, y_train = load_csv_data(os.path.join(base_path, 'train/train_data.csv'))
-        x_val, y_val = load_csv_data(os.path.join(base_path, 'val/val_data.csv'))
-        x_test, y_test = load_csv_data(os.path.join(base_path, 'test/test_data.csv'))
-
-
-        # feature_columns = [ 'date']
-        # label_columns = ['close']
 
         if fixed_num_context>0:
             num_context = fixed_num_context
         else:
             num_context = torch.randint(low=3, high=self._max_num_context + 1, size=(1,))
 
-        window_size = 96
-        step = 16
-        
+        file_path = './datasets/XAUUSD.csv'
+        x_values, y_values = load_csv_data(os.path.join(file_path))
+
         if self._testing:
-            num_total_points = 20
-            num_target = num_total_points
-            
-            # print(self.start_index)
-            if self.start_index + window_size > len(x_test):
-                print("End of data reached")
-                self.start_index = 0
-            else:
-                
-                window_data_x = x_test[self.start_index:self.start_index + window_size]
-                window_data_y = y_test[self.start_index:self.start_index + window_size]
-
-                if len(window_data_x) < self._batch_size * num_total_points:
-                    raise ValueError(f"Not enough data points: expected {self._batch_size * num_total_points}, got {len(window_data_x)}")
-
-                
-                x_values = torch.tensor(window_data_x[:self._batch_size * num_total_points], dtype=torch.float32)
-                y_values = torch.tensor(window_data_y[:self._batch_size * num_total_points], dtype=torch.float32)
-
-                x_values = x_values.view(self._batch_size, num_total_points, self._x_size) 
-                y_values = y_values.view(self._batch_size, num_total_points, self._y_size)  
-                self.start_index += step
-
-                  
-
-
-            # x_values = torch.tensor(x_test[:self._batch_size * num_total_points], dtype=torch.float32)
-            # y_values = torch.tensor(y_test[:self._batch_size * num_total_points], dtype=torch.float32)
-            # x_values = x_values.view(self._batch_size, num_total_points, self._x_size)  # x_size=1
-            # y_values = y_values.view(self._batch_size, num_total_points, self._y_size)  # y_size=1
-
-            # print(x_values.shape)
-            # print(y_values.shape)
+            num_target = 400
+            num_total_points = num_target
+            x_values = x_values[-num_target:]
+            y_values = y_values[-num_target:]
 
         else:
-            num_target = 2
+            num_target = torch.randint(3,self._max_num_context+1, size = (1,))
             num_total_points = num_target + num_context
-            
-            if self.start_index + window_size > len(x_train):
-                print("End of data reached")
-                self.start_index = 0
-            else:
-                # print('first_step_train')
-                window_data_x = x_train[self.start_index:self.start_index + window_size]
-                window_data_y = y_train[self.start_index:self.start_index + window_size]
+            shuffled_indices = np.random.permutation(len(x_values))
+            random_indices = shuffled_indices[:num_total_points]
 
-                if len(window_data_x) < self._batch_size * num_total_points:
-                    raise ValueError(f"Not enough data points: expected {self._batch_size * num_total_points}, got {len(window_data_x)}")
-
-                
-                x_values = torch.tensor(window_data_x[:self._batch_size * num_total_points], dtype=torch.float32)
-                y_values = torch.tensor(window_data_y[:self._batch_size * num_total_points], dtype=torch.float32)
-
-                x_values = x_values.view(self._batch_size, num_total_points, self._x_size) 
-                y_values = y_values.view(self._batch_size, num_total_points, self._y_size)  
-                self.start_index += step
+            x_values = x_values[random_indices]
+            y_values = y_values[random_indices]
 
 
 
+        x_values = torch.tensor(x_values, dtype=torch.float32)
+        y_values = torch.tensor(y_values, dtype=torch.float32)
+        x_values = x_values.view(self._x_size, num_total_points, self._x_size)  # x_size=1
+        y_values = y_values.view(self._y_size, num_total_points, self._y_size)  # y_size=1
 
-            # x_values = torch.tensor(x_train[:self._batch_size * num_total_points], dtype=torch.float32)
-            # y_values = torch.tensor(y_train[:self._batch_size * num_total_points], dtype=torch.float32)
-            # x_values = x_values.view(self._batch_size, num_total_points, self._x_size)  # x_size=1
-            # y_values = y_values.view(self._batch_size, num_total_points, self._y_size)  # y_size=1
-            # print(x_values.shape)
-            # print(y_values.shape)
 
         task_property = torch.tensor(1)
 
         if self._testing:
-            
+            print('testing_step')
             target_x = x_values
             target_y = y_values
-            # print('here',x_values.shape)
-            # print(y_values.shape)
             idx = torch.randperm(num_target)
             context_x = x_values[:, idx[:num_context], :]
             context_y = y_values[:,idx[:num_context],:]
         else:
-            # print('secound_step_train')
+            print('training_step')
             target_x = x_values[:,:num_target+num_context,:]
             target_y = y_values[:,:num_target+num_context,:]
 
