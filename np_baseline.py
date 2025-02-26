@@ -3,7 +3,6 @@ import torch.optim as optim
 import torch.nn.functional as F
 import time
 import numpy as np
-import pandas as pd
 
 # All the arguments here
 from utilFiles.get_args import the_args
@@ -58,6 +57,7 @@ save_to_txt_file(f"{save_to_dir}/model_details.txt", details_txt, 0, "Saved Deta
 
 from utilFiles.helper_functions_shared import save_results
 
+
 if task == "image_completion":
     from plot_functions.plot_2d_image_completion_aug8 import plot_functions_3d
     #Make context set and target set from the image
@@ -66,12 +66,9 @@ elif task == "1d_regression":
     from utilFiles.util_plot_all import plot_functions_alea_ep_1d
     training_iterations = int(args.training_iterations)
     save_models_every = training_iterations//10
-    #Make context set and target set from the image
-    from data.task_generator_helpers import get_context_target_1d
 else:
-    from utilFiles.util_plot_all import plot_functions_alea_ep_1d
-    training_iterations = int(args.training_iterations)
-    save_models_every = training_iterations//10
+    print("Unknown problem")
+    raise NotImplementedError
 
 
 logging_dict, logging_dict_all = {}, []
@@ -102,17 +99,11 @@ def test_model_and_save_results(epoch, tr_time_taken = 0):
                 index = loop_item
                 data_test = dataset_test.generate_curves(device=device, fixed_num_context=args.max_context_points)
                 query, target_y = data_test.query, data_test.target_y
-                # print(f"context_x shape: {context_x.shape}")
-                # print(f"context_y shape: {context_y.shape}")
-                # print(f"target_x shape: {target_x.shape}")
-                # print(f"target_y shape: {target_y.shape}")
-                                                      
+
             elif task == "image_completion":
                 index, (batch_x, batch_label) = loop_item
-                batch_x = pd.DataFrame(batch_x.cpu().numpy(), columns=['date', 'open']) 
-                batch_x_tensor = torch.tensor(batch_x.values, dtype=torch.float32)
-                batch_x_tensor = batch_x_tensor.to(device)
-                query, target_y, context_mask, _ = get_context_target_2d(batch_x_tensor, num_ctx_pts=args.max_context_points)
+                batch_x = batch_x.to(device)
+                query, target_y, context_mask, _ = get_context_target_2d(batch_x, num_ctx_pts=args.max_context_points)
 
             if args.use_latent_path:
                 mu = 0
@@ -175,7 +166,6 @@ def test_model_and_save_results(epoch, tr_time_taken = 0):
 
     logging_dict, logging_dict_all = save_results(logging_dict, logging_dict_all, keys, values, save_to_dir)
 
-    task == "1d_regression"
     # Save Images
     if task == "1d_regression":
         (context_x, context_y), target_x = data_test.query
@@ -226,10 +216,10 @@ def one_iteration_training(query, target_y):
 def train_1d_regression(tr_time_end = 0, tr_time_start=0):
     for tr_index in range(args.training_iterations+1):
         save_tracker_val = tr_index % args.test_1d_every
-        if save_tracker_val == 0 or tr_index == args.epochs - 1:
+        if save_tracker_val == 0 or tr_index == args.training_iterations:
             tr_time_taken = tr_time_end - tr_time_start
             average_test_loss = test_model_and_save_results(tr_index, tr_time_taken)
-            print("ss")
+
             save_model(f"{save_to_dir}/saved_models/model_{tr_index}.pth", model)
             tr_time_start = time.time()
         # Training phase
