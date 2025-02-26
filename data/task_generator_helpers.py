@@ -1,46 +1,6 @@
 import torch
 import random
-import pandas as pd
 from models.image_completion_helpers import the_image_grid, make_context_mask
-
-
-def get_context_target_1d(data, device, features=['date', 'open'], labels=['close'], fixed_num_context=-1):
-    if not isinstance(data, pd.DataFrame):
-          raise ValueError("The input 'data' must be a pandas DataFrame.")
-    if fixed_num_context > 0:
-        num_context = fixed_num_context
-    else:
-        num_context = torch.randint(low=3, high=self.max_num_context + 1, size=(1,)).item()
-
-
-    for feature in features:
-        if feature in data.columns:
-            data[feature] = pd.to_numeric(data[feature], errors='coerce')
-    data.dropna(subset=features + labels, inplace=True)
-
-    X = data[features].to_numpy()
-    y = data[labels].to_numpy()
-
-    num_total_points = X.shape[0]
-
-    if self.testing:
-        num_target = num_total_points
-    else:
-        num_target = torch.randint(3, self.max_num_context + 1, size=(1,)).item()
-
-    idx = torch.randperm(num_total_points)
-    context_idx = idx[:num_context]
-    target_idx = idx[:num_target + num_context]
-
-    context_x = torch.tensor(X[context_idx], dtype=torch.float32).to(device)
-    context_y = torch.tensor(y[context_idx], dtype=torch.float32).to(device)
-
-    target_x = torch.tensor(X[target_idx], dtype=torch.float32).to(device)
-    target_y = torch.tensor(y[target_idx], dtype=torch.float32).to(device)
-
-    query = ((context_x, context_y), target_x)
-
-    return query, target_y
 
 
 def get_context_target_2d(image_batch, num_ctx_pts = -1, is_Test_Time = False):
