@@ -59,6 +59,7 @@ save_to_txt_file(f"{save_to_dir}/model_details.txt", details_txt, 0, "Saved Deta
 
 from utilFiles.helper_functions_shared import save_results
 
+task = "1d_regression"
 if task == "image_completion":
     from plot_functions.plot_2d_image_completion_aug8 import plot_functions_3d_edl
     #Make context set and target set from the image

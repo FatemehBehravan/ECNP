@@ -71,7 +71,7 @@ elif args.dataset.lower() in ['mnist', 'celeba', 'cifar10']:
     task = "image_completion"
 
 		
-task = "unknown_task"
+
 if task == "image_completion":
     # Training dataset
     dataset_train = DataLoader(ImageLoader("train"),batch_size=args.batch_size,shuffle=True)
