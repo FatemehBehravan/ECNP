@@ -3076,3 +3076,403 @@ Evd_det_model(
 )
 Num parameters: 132868
 Namespace(dataset='xauusd', seed=0, training_iterations=20000, num_epochs=50, test_1d_every=2000, save_results_every=1, num_test_tasks=2000, max_context_points=50, model_type='CNP', attention_type='multihead', gpu_id=0, epochs=50, batch_size=8, experiment_name='CNP-model-save-name', representation_size=128, hidden_size=128, num_enc_hdn_lrs=4, learning_rate=0.001, use_deterministic_path=True, use_latent_path=False, debugging=False, load_model=False, nig_nll_reg_coef=0.1, nig_nll_ker_reg_coef=1.0, ev_dec_beta_min=0.2, ev_dec_alpha_max=20.0, ev_dec_v_max=20.0, ev_lat_beta_min=0.2, ev_lat_alpha_max=20.0, ev_lat_v_max=20.0, outlier_training_tasks='False', outlier_val=0.0, active_task_sel=False, use_domain_knowledge=False, save_models_every=5, channels=1)
+Saved Details
+Evd_det_model(
+  (_deterministic_encoder): ANPDeterministicEncoder(
+    (linear_layers_list): ModuleList(
+      (0): Linear(in_features=2, out_features=128, bias=True)
+      (1): ReLU()
+      (2): Linear(in_features=128, out_features=128, bias=True)
+      (3): ReLU()
+      (4): Linear(in_features=128, out_features=128, bias=True)
+      (5): ReLU()
+      (6): Linear(in_features=128, out_features=128, bias=True)
+      (7): ReLU()
+      (8): Linear(in_features=128, out_features=128, bias=True)
+    )
+    (_attention): Attention()
+  )
+  (_evidential_decoder): ANPEvidentialDecoder(
+    (linear_layers_list): ModuleList(
+      (0): Linear(in_features=129, out_features=128, bias=True)
+      (1): ReLU()
+      (2): Linear(in_features=128, out_features=128, bias=True)
+    )
+    (transform_gamma): Sequential(
+      (0): ReLU()
+      (1): Linear(in_features=128, out_features=64, bias=True)
+      (2): ReLU()
+      (3): Linear(in_features=64, out_features=1, bias=True)
+    )
+    (transform_v): Sequential(
+      (0): ReLU()
+      (1): Linear(in_features=128, out_features=64, bias=True)
+      (2): ReLU()
+      (3): Linear(in_features=64, out_features=1, bias=True)
+    )
+    (transform_alpha): Sequential(
+      (0): ReLU()
+      (1): Linear(in_features=128, out_features=64, bias=True)
+      (2): ReLU()
+      (3): Linear(in_features=64, out_features=1, bias=True)
+    )
+    (transform_beta): Sequential(
+      (0): ReLU()
+      (1): Linear(in_features=128, out_features=64, bias=True)
+      (2): ReLU()
+      (3): Linear(in_features=64, out_features=1, bias=True)
+    )
+  )
+)
+Num parameters: 132868
+Namespace(dataset='xauusd', seed=0, training_iterations=20000, num_epochs=50, test_1d_every=2000, save_results_every=1, num_test_tasks=2000, max_context_points=150, model_type='CNP', attention_type='multihead', gpu_id=0, epochs=50, batch_size=8, experiment_name='CNP-model-save-name', representation_size=128, hidden_size=128, num_enc_hdn_lrs=4, learning_rate=0.001, use_deterministic_path=True, use_latent_path=False, debugging=False, load_model=False, nig_nll_reg_coef=0.1, nig_nll_ker_reg_coef=1.0, ev_dec_beta_min=0.2, ev_dec_alpha_max=20.0, ev_dec_v_max=20.0, ev_lat_beta_min=0.2, ev_lat_alpha_max=20.0, ev_lat_v_max=20.0, outlier_training_tasks='False', outlier_val=0.0, active_task_sel=False, use_domain_knowledge=False, save_models_every=5, channels=1)
+Saved Details
+Evd_det_model(
+  (_deterministic_encoder): ANPDeterministicEncoder(
+    (linear_layers_list): ModuleList(
+      (0): Linear(in_features=2, out_features=128, bias=True)
+      (1): ReLU()
+      (2): Linear(in_features=128, out_features=128, bias=True)
+      (3): ReLU()
+      (4): Linear(in_features=128, out_features=128, bias=True)
+      (5): ReLU()
+      (6): Linear(in_features=128, out_features=128, bias=True)
+      (7): ReLU()
+      (8): Linear(in_features=128, out_features=128, bias=True)
+    )
+    (_attention): Attention()
+  )
+  (_evidential_decoder): ANPEvidentialDecoder(
+    (linear_layers_list): ModuleList(
+      (0): Linear(in_features=129, out_features=128, bias=True)
+      (1): ReLU()
+      (2): Linear(in_features=128, out_features=128, bias=True)
+    )
+    (transform_gamma): Sequential(
+      (0): ReLU()
+      (1): Linear(in_features=128, out_features=64, bias=True)
+      (2): ReLU()
+      (3): Linear(in_features=64, out_features=1, bias=True)
+    )
+    (transform_v): Sequential(
+      (0): ReLU()
+      (1): Linear(in_features=128, out_features=64, bias=True)
+      (2): ReLU()
+      (3): Linear(in_features=64, out_features=1, bias=True)
+    )
+    (transform_alpha): Sequential(
+      (0): ReLU()
+      (1): Linear(in_features=128, out_features=64, bias=True)
+      (2): ReLU()
+      (3): Linear(in_features=64, out_features=1, bias=True)
+    )
+    (transform_beta): Sequential(
+      (0): ReLU()
+      (1): Linear(in_features=128, out_features=64, bias=True)
+      (2): ReLU()
+      (3): Linear(in_features=64, out_features=1, bias=True)
+    )
+  )
+)
+Num parameters: 132868
+Namespace(dataset='xauusd', seed=0, training_iterations=20000, num_epochs=50, test_1d_every=2000, save_results_every=1, num_test_tasks=2000, max_context_points=150, model_type='CNP', attention_type='multihead', gpu_id=0, epochs=50, batch_size=8, experiment_name='CNP-model-save-name', representation_size=128, hidden_size=128, num_enc_hdn_lrs=4, learning_rate=0.001, use_deterministic_path=True, use_latent_path=False, debugging=False, load_model=False, nig_nll_reg_coef=0.1, nig_nll_ker_reg_coef=1.0, ev_dec_beta_min=0.2, ev_dec_alpha_max=20.0, ev_dec_v_max=20.0, ev_lat_beta_min=0.2, ev_lat_alpha_max=20.0, ev_lat_v_max=20.0, outlier_training_tasks='False', outlier_val=0.0, active_task_sel=False, use_domain_knowledge=False, save_models_every=5, channels=1)
+Saved Details
+Evd_det_model(
+  (_deterministic_encoder): ANPDeterministicEncoder(
+    (linear_layers_list): ModuleList(
+      (0): Linear(in_features=2, out_features=128, bias=True)
+      (1): ReLU()
+      (2): Linear(in_features=128, out_features=128, bias=True)
+      (3): ReLU()
+      (4): Linear(in_features=128, out_features=128, bias=True)
+      (5): ReLU()
+      (6): Linear(in_features=128, out_features=128, bias=True)
+      (7): ReLU()
+      (8): Linear(in_features=128, out_features=128, bias=True)
+    )
+    (_attention): Attention()
+  )
+  (_evidential_decoder): ANPEvidentialDecoder(
+    (linear_layers_list): ModuleList(
+      (0): Linear(in_features=129, out_features=128, bias=True)
+      (1): ReLU()
+      (2): Linear(in_features=128, out_features=128, bias=True)
+    )
+    (transform_gamma): Sequential(
+      (0): ReLU()
+      (1): Linear(in_features=128, out_features=64, bias=True)
+      (2): ReLU()
+      (3): Linear(in_features=64, out_features=1, bias=True)
+    )
+    (transform_v): Sequential(
+      (0): ReLU()
+      (1): Linear(in_features=128, out_features=64, bias=True)
+      (2): ReLU()
+      (3): Linear(in_features=64, out_features=1, bias=True)
+    )
+    (transform_alpha): Sequential(
+      (0): ReLU()
+      (1): Linear(in_features=128, out_features=64, bias=True)
+      (2): ReLU()
+      (3): Linear(in_features=64, out_features=1, bias=True)
+    )
+    (transform_beta): Sequential(
+      (0): ReLU()
+      (1): Linear(in_features=128, out_features=64, bias=True)
+      (2): ReLU()
+      (3): Linear(in_features=64, out_features=1, bias=True)
+    )
+  )
+)
+Num parameters: 132868
+Namespace(dataset='xauusd', seed=0, training_iterations=20000, num_epochs=50, test_1d_every=2000, save_results_every=1, num_test_tasks=2000, max_context_points=150, model_type='CNP', attention_type='multihead', gpu_id=0, epochs=50, batch_size=8, experiment_name='CNP-model-save-name', representation_size=128, hidden_size=128, num_enc_hdn_lrs=4, learning_rate=0.001, use_deterministic_path=True, use_latent_path=False, debugging=False, load_model=False, nig_nll_reg_coef=0.1, nig_nll_ker_reg_coef=1.0, ev_dec_beta_min=0.2, ev_dec_alpha_max=20.0, ev_dec_v_max=20.0, ev_lat_beta_min=0.2, ev_lat_alpha_max=20.0, ev_lat_v_max=20.0, outlier_training_tasks='False', outlier_val=0.0, active_task_sel=False, use_domain_knowledge=False, save_models_every=5, channels=1)
+Saved Details
+Evd_det_model(
+  (_deterministic_encoder): ANPDeterministicEncoder(
+    (linear_layers_list): ModuleList(
+      (0): Linear(in_features=2, out_features=128, bias=True)
+      (1): ReLU()
+      (2): Linear(in_features=128, out_features=128, bias=True)
+      (3): ReLU()
+      (4): Linear(in_features=128, out_features=128, bias=True)
+      (5): ReLU()
+      (6): Linear(in_features=128, out_features=128, bias=True)
+      (7): ReLU()
+      (8): Linear(in_features=128, out_features=128, bias=True)
+    )
+    (_attention): Attention()
+  )
+  (_evidential_decoder): ANPEvidentialDecoder(
+    (linear_layers_list): ModuleList(
+      (0): Linear(in_features=129, out_features=128, bias=True)
+      (1): ReLU()
+      (2): Linear(in_features=128, out_features=128, bias=True)
+    )
+    (transform_gamma): Sequential(
+      (0): ReLU()
+      (1): Linear(in_features=128, out_features=64, bias=True)
+      (2): ReLU()
+      (3): Linear(in_features=64, out_features=1, bias=True)
+    )
+    (transform_v): Sequential(
+      (0): ReLU()
+      (1): Linear(in_features=128, out_features=64, bias=True)
+      (2): ReLU()
+      (3): Linear(in_features=64, out_features=1, bias=True)
+    )
+    (transform_alpha): Sequential(
+      (0): ReLU()
+      (1): Linear(in_features=128, out_features=64, bias=True)
+      (2): ReLU()
+      (3): Linear(in_features=64, out_features=1, bias=True)
+    )
+    (transform_beta): Sequential(
+      (0): ReLU()
+      (1): Linear(in_features=128, out_features=64, bias=True)
+      (2): ReLU()
+      (3): Linear(in_features=64, out_features=1, bias=True)
+    )
+  )
+)
+Num parameters: 132868
+Namespace(dataset='xauusd', seed=0, training_iterations=20000, num_epochs=50, test_1d_every=2000, save_results_every=1, num_test_tasks=2000, max_context_points=150, model_type='CNP', attention_type='multihead', gpu_id=0, epochs=50, batch_size=8, experiment_name='CNP-model-save-name', representation_size=128, hidden_size=128, num_enc_hdn_lrs=4, learning_rate=0.001, use_deterministic_path=True, use_latent_path=False, debugging=False, load_model=False, nig_nll_reg_coef=0.1, nig_nll_ker_reg_coef=1.0, ev_dec_beta_min=0.2, ev_dec_alpha_max=20.0, ev_dec_v_max=20.0, ev_lat_beta_min=0.2, ev_lat_alpha_max=20.0, ev_lat_v_max=20.0, outlier_training_tasks='False', outlier_val=0.0, active_task_sel=False, use_domain_knowledge=False, save_models_every=5, channels=1)
+Saved Details
+Evd_det_model(
+  (_deterministic_encoder): ANPDeterministicEncoder(
+    (linear_layers_list): ModuleList(
+      (0): Linear(in_features=2, out_features=128, bias=True)
+      (1): ReLU()
+      (2): Linear(in_features=128, out_features=128, bias=True)
+      (3): ReLU()
+      (4): Linear(in_features=128, out_features=128, bias=True)
+      (5): ReLU()
+      (6): Linear(in_features=128, out_features=128, bias=True)
+      (7): ReLU()
+      (8): Linear(in_features=128, out_features=128, bias=True)
+    )
+    (_attention): Attention()
+  )
+  (_evidential_decoder): ANPEvidentialDecoder(
+    (linear_layers_list): ModuleList(
+      (0): Linear(in_features=129, out_features=128, bias=True)
+      (1): ReLU()
+      (2): Linear(in_features=128, out_features=128, bias=True)
+    )
+    (transform_gamma): Sequential(
+      (0): ReLU()
+      (1): Linear(in_features=128, out_features=64, bias=True)
+      (2): ReLU()
+      (3): Linear(in_features=64, out_features=1, bias=True)
+    )
+    (transform_v): Sequential(
+      (0): ReLU()
+      (1): Linear(in_features=128, out_features=64, bias=True)
+      (2): ReLU()
+      (3): Linear(in_features=64, out_features=1, bias=True)
+    )
+    (transform_alpha): Sequential(
+      (0): ReLU()
+      (1): Linear(in_features=128, out_features=64, bias=True)
+      (2): ReLU()
+      (3): Linear(in_features=64, out_features=1, bias=True)
+    )
+    (transform_beta): Sequential(
+      (0): ReLU()
+      (1): Linear(in_features=128, out_features=64, bias=True)
+      (2): ReLU()
+      (3): Linear(in_features=64, out_features=1, bias=True)
+    )
+  )
+)
+Num parameters: 132868
+Namespace(dataset='xauusd', seed=0, training_iterations=20000, num_epochs=50, test_1d_every=2000, save_results_every=1, num_test_tasks=2000, max_context_points=150, model_type='CNP', attention_type='multihead', gpu_id=0, epochs=50, batch_size=8, experiment_name='CNP-model-save-name', representation_size=128, hidden_size=128, num_enc_hdn_lrs=4, learning_rate=0.001, use_deterministic_path=True, use_latent_path=False, debugging=False, load_model=False, nig_nll_reg_coef=0.1, nig_nll_ker_reg_coef=1.0, ev_dec_beta_min=0.2, ev_dec_alpha_max=20.0, ev_dec_v_max=20.0, ev_lat_beta_min=0.2, ev_lat_alpha_max=20.0, ev_lat_v_max=20.0, outlier_training_tasks='False', outlier_val=0.0, active_task_sel=False, use_domain_knowledge=False, save_models_every=5, channels=1)
+Saved Details
+Evd_det_model(
+  (_deterministic_encoder): ANPDeterministicEncoder(
+    (linear_layers_list): ModuleList(
+      (0): Linear(in_features=2, out_features=128, bias=True)
+      (1): ReLU()
+      (2): Linear(in_features=128, out_features=128, bias=True)
+      (3): ReLU()
+      (4): Linear(in_features=128, out_features=128, bias=True)
+      (5): ReLU()
+      (6): Linear(in_features=128, out_features=128, bias=True)
+      (7): ReLU()
+      (8): Linear(in_features=128, out_features=128, bias=True)
+    )
+    (_attention): Attention()
+  )
+  (_evidential_decoder): ANPEvidentialDecoder(
+    (linear_layers_list): ModuleList(
+      (0): Linear(in_features=129, out_features=128, bias=True)
+      (1): ReLU()
+      (2): Linear(in_features=128, out_features=128, bias=True)
+    )
+    (transform_gamma): Sequential(
+      (0): ReLU()
+      (1): Linear(in_features=128, out_features=64, bias=True)
+      (2): ReLU()
+      (3): Linear(in_features=64, out_features=1, bias=True)
+    )
+    (transform_v): Sequential(
+      (0): ReLU()
+      (1): Linear(in_features=128, out_features=64, bias=True)
+      (2): ReLU()
+      (3): Linear(in_features=64, out_features=1, bias=True)
+    )
+    (transform_alpha): Sequential(
+      (0): ReLU()
+      (1): Linear(in_features=128, out_features=64, bias=True)
+      (2): ReLU()
+      (3): Linear(in_features=64, out_features=1, bias=True)
+    )
+    (transform_beta): Sequential(
+      (0): ReLU()
+      (1): Linear(in_features=128, out_features=64, bias=True)
+      (2): ReLU()
+      (3): Linear(in_features=64, out_features=1, bias=True)
+    )
+  )
+)
+Num parameters: 132868
+Namespace(dataset='xauusd', seed=0, training_iterations=20000, num_epochs=50, test_1d_every=2000, save_results_every=1, num_test_tasks=2000, max_context_points=150, model_type='CNP', attention_type='multihead', gpu_id=0, epochs=50, batch_size=8, experiment_name='CNP-model-save-name', representation_size=128, hidden_size=128, num_enc_hdn_lrs=4, learning_rate=0.001, use_deterministic_path=True, use_latent_path=False, debugging=False, load_model=False, nig_nll_reg_coef=0.1, nig_nll_ker_reg_coef=1.0, ev_dec_beta_min=0.2, ev_dec_alpha_max=20.0, ev_dec_v_max=20.0, ev_lat_beta_min=0.2, ev_lat_alpha_max=20.0, ev_lat_v_max=20.0, outlier_training_tasks='False', outlier_val=0.0, active_task_sel=False, use_domain_knowledge=False, save_models_every=5, channels=1)
+Saved Details
+Evd_det_model(
+  (_deterministic_encoder): ANPDeterministicEncoder(
+    (linear_layers_list): ModuleList(
+      (0): Linear(in_features=2, out_features=128, bias=True)
+      (1): ReLU()
+      (2): Linear(in_features=128, out_features=128, bias=True)
+      (3): ReLU()
+      (4): Linear(in_features=128, out_features=128, bias=True)
+      (5): ReLU()
+      (6): Linear(in_features=128, out_features=128, bias=True)
+      (7): ReLU()
+      (8): Linear(in_features=128, out_features=128, bias=True)
+    )
+    (_attention): Attention()
+  )
+  (_evidential_decoder): ANPEvidentialDecoder(
+    (linear_layers_list): ModuleList(
+      (0): Linear(in_features=129, out_features=128, bias=True)
+      (1): ReLU()
+      (2): Linear(in_features=128, out_features=128, bias=True)
+    )
+    (transform_gamma): Sequential(
+      (0): ReLU()
+      (1): Linear(in_features=128, out_features=64, bias=True)
+      (2): ReLU()
+      (3): Linear(in_features=64, out_features=1, bias=True)
+    )
+    (transform_v): Sequential(
+      (0): ReLU()
+      (1): Linear(in_features=128, out_features=64, bias=True)
+      (2): ReLU()
+      (3): Linear(in_features=64, out_features=1, bias=True)
+    )
+    (transform_alpha): Sequential(
+      (0): ReLU()
+      (1): Linear(in_features=128, out_features=64, bias=True)
+      (2): ReLU()
+      (3): Linear(in_features=64, out_features=1, bias=True)
+    )
+    (transform_beta): Sequential(
+      (0): ReLU()
+      (1): Linear(in_features=128, out_features=64, bias=True)
+      (2): ReLU()
+      (3): Linear(in_features=64, out_features=1, bias=True)
+    )
+  )
+)
+Num parameters: 132868
+Namespace(dataset='xauusd', seed=0, training_iterations=20000, num_epochs=50, test_1d_every=2000, save_results_every=1, num_test_tasks=2000, max_context_points=150, model_type='CNP', attention_type='multihead', gpu_id=0, epochs=50, batch_size=8, experiment_name='CNP-model-save-name', representation_size=128, hidden_size=128, num_enc_hdn_lrs=4, learning_rate=0.001, use_deterministic_path=True, use_latent_path=False, debugging=False, load_model=False, nig_nll_reg_coef=0.1, nig_nll_ker_reg_coef=1.0, ev_dec_beta_min=0.2, ev_dec_alpha_max=20.0, ev_dec_v_max=20.0, ev_lat_beta_min=0.2, ev_lat_alpha_max=20.0, ev_lat_v_max=20.0, outlier_training_tasks='False', outlier_val=0.0, active_task_sel=False, use_domain_knowledge=False, save_models_every=5, channels=1)
+Saved Details
+Evd_det_model(
+  (_deterministic_encoder): ANPDeterministicEncoder(
+    (linear_layers_list): ModuleList(
+      (0): Linear(in_features=2, out_features=128, bias=True)
+      (1): ReLU()
+      (2): Linear(in_features=128, out_features=128, bias=True)
+      (3): ReLU()
+      (4): Linear(in_features=128, out_features=128, bias=True)
+      (5): ReLU()
+      (6): Linear(in_features=128, out_features=128, bias=True)
+      (7): ReLU()
+      (8): Linear(in_features=128, out_features=128, bias=True)
+    )
+    (_attention): Attention()
+  )
+  (_evidential_decoder): ANPEvidentialDecoder(
+    (linear_layers_list): ModuleList(
+      (0): Linear(in_features=129, out_features=128, bias=True)
+      (1): ReLU()
+      (2): Linear(in_features=128, out_features=128, bias=True)
+    )
+    (transform_gamma): Sequential(
+      (0): ReLU()
+      (1): Linear(in_features=128, out_features=64, bias=True)
+      (2): ReLU()
+      (3): Linear(in_features=64, out_features=1, bias=True)
+    )
+    (transform_v): Sequential(
+      (0): ReLU()
+      (1): Linear(in_features=128, out_features=64, bias=True)
+      (2): ReLU()
+      (3): Linear(in_features=64, out_features=1, bias=True)
+    )
+    (transform_alpha): Sequential(
+      (0): ReLU()
+      (1): Linear(in_features=128, out_features=64, bias=True)
+      (2): ReLU()
+      (3): Linear(in_features=64, out_features=1, bias=True)
+    )
+    (transform_beta): Sequential(
+      (0): ReLU()
+      (1): Linear(in_features=128, out_features=64, bias=True)
+      (2): ReLU()
+      (3): Linear(in_features=64, out_features=1, bias=True)
+    )
+  )
+)
+Num parameters: 132868
+Namespace(dataset='xauusd', seed=0, training_iterations=20000, num_epochs=50, test_1d_every=2000, save_results_every=1, num_test_tasks=2000, max_context_points=50, model_type='CNP', attention_type='multihead', gpu_id=0, epochs=50, batch_size=8, experiment_name='CNP-model-save-name', representation_size=128, hidden_size=128, num_enc_hdn_lrs=4, learning_rate=0.001, use_deterministic_path=True, use_latent_path=False, debugging=False, load_model=False, nig_nll_reg_coef=0.1, nig_nll_ker_reg_coef=1.0, ev_dec_beta_min=0.2, ev_dec_alpha_max=20.0, ev_dec_v_max=20.0, ev_lat_beta_min=0.2, ev_lat_alpha_max=20.0, ev_lat_v_max=20.0, outlier_training_tasks='False', outlier_val=0.0, active_task_sel=False, use_domain_knowledge=False, save_models_every=5, channels=1)

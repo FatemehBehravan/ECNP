@@ -1,9 +1,13 @@
+# Final BaseLine
+
 import torch
 import collections
 import numpy as np
 import random
 import os
 import pandas as pd
+from sklearn.preprocessing import MinMaxScaler
+
 
 NPRegressionDescription = collections.namedtuple("NPRegressionDescription",("query", "target_y", "num_total_points", "num_context_points","task_defn"))
 
@@ -36,7 +40,7 @@ class NumericDataset(object):
 
 
         def load_csv_data(file_path):
-          
+
             data = pd.read_csv(file_path)
             data['counter'] = data['counter'].astype(int)
             #data['open'] = data['open'].astype(int)
@@ -44,8 +48,23 @@ class NumericDataset(object):
             data['MA'] = data['close'].rolling(window=100).mean()
             data = data.tail(400)
 
-            x = data['counter'].values
-            y = data['MA'].values
+            scaler = MinMaxScaler()
+            scaled_data = scaler.fit_transform(data[['counter', 'MA']])
+            scaled_data = pd.DataFrame(scaled_data, columns=['counter', 'MA'])
+            # counter_min = data['counter'].min()
+            # counter_max = data['counter'].max()
+            # data['counter_scaled'] = 5 * (data['counter'] - counter_min) / (counter_max - counter_min)
+
+            # MA_min = data['MA'].min()
+            # MA_max = data['MA'].max()
+            # data['MA_scaled'] = 8 * (data['MA'] - MA_min) / (MA_max - MA_min) - 4
+
+            # x = data['counter_scaled'].values
+            # y = data['MA_scaled'].values
+
+
+            x = scaled_data['counter'].values
+            y = scaled_data['MA'].values
             return x, y
 
 
@@ -57,6 +76,8 @@ class NumericDataset(object):
         file_path = './datasets/XAUUSD.csv'
         x_values, y_values = load_csv_data(os.path.join(file_path))
 
+        num_85_percent = int(len(x_values) * 0.85)
+
         if self._testing:
             num_target = 400
             num_total_points = num_target
@@ -66,7 +87,7 @@ class NumericDataset(object):
         else:
             num_target = torch.randint(3,self._max_num_context+1, size = (1,))
             num_total_points = num_target + num_context
-            shuffled_indices = np.random.permutation(len(x_values))
+            shuffled_indices = np.random.permutation(num_85_percent)
             random_indices = shuffled_indices[:num_total_points]
 
             x_values = x_values[random_indices]
@@ -83,14 +104,19 @@ class NumericDataset(object):
         task_property = torch.tensor(1)
 
         if self._testing:
-            print('testing_step')
+            # print('testing_step')
             target_x = x_values
             target_y = y_values
-            idx = torch.randperm(num_target)
+            # print('here',x_values.shape)
+            # print(y_values.shape)
+
+            # idx = torch.randperm(num_target)
+
+            idx = torch.randperm(num_85_percent)
             context_x = x_values[:, idx[:num_context], :]
             context_y = y_values[:,idx[:num_context],:]
         else:
-            print('training_step')
+            # print('training_step')
             target_x = x_values[:,:num_target+num_context,:]
             target_y = y_values[:,:num_target+num_context,:]
 
