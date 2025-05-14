@@ -13,7 +13,6 @@ class LSTMModel(nn.Module):
             batch_first=True,
             dropout=dropout if num_layers > 1 else 0
         )
-        self.batch_norm = nn.BatchNorm1d(lstm_hidden_size)
         self.fc = nn.Linear(lstm_hidden_size, lstm_hidden_size)
 
         # Initialize weights
@@ -27,9 +26,8 @@ class LSTMModel(nn.Module):
         # Combine context_x and context_y
         x = torch.cat([context_x, context_y], dim=-1)  # (batch, seq_len, 2)
         # LSTM processing
-        out, (h_n, c_n) = self.lstm(x)  # out: (batch, seq_len, hidden_size)
+        out, (h_n, c_n) = self.lstm(x)  # out: (batch, seq_len, lstm_hidden_size)
         # Take the last timestep
-        out = out[:, -1, :]  # (batch, hidden_size)
-        out = self.batch_norm(out)
-        out = self.fc(out)  # (batch, hidden_size)
+        out = out[:, -1, :]  # (batch, lstm_hidden_size)
+        out = self.fc(out)  # (batch, lstm_hidden_size)
         return out

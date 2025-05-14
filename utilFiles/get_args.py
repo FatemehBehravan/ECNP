@@ -7,8 +7,8 @@ def the_args():
     parser.add_argument('-lstm_hidden_size', '--lstm_hidden_size', type=int, default=32, help='for small dayasets')
     parser.add_argument('-lstm_dropout', '--lstm_dropout', type=int, default=0.4, help='forbidden overfit')
     parser.add_argument('-channels', '--channels', type=int, default=1, help='only close')
-    # parser.add_argument('-lstm_dropout', '--lstm_dropout', type=int, default=0.4, help='forbidden overfit')
-    # parser.add_argument('-num_epochs', '--num_epochs', type=int, default=50, help='Number of training iterations')
+    parser.add_argument('-x_size', '--x_size', type=int, default=1, help='x_size')
+    parser.add_argument('-y_size', '--y_size', type=int, default=1, help='y_size')
     
     
     

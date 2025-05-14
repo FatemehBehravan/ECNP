@@ -8,6 +8,10 @@ import torch
 import torch.nn as nn
 from models.lstm_model import LSTMModel
 
+import torch
+import torch.nn as nn
+from models.lstm_model import LSTMModel
+
 class LSTM_Evd_Model(np_model):
     def __init__(self,
                  latent_encoder_output_size,
@@ -25,7 +29,7 @@ class LSTM_Evd_Model(np_model):
         if self._use_deterministic_path:  # CNP or ANP Model
             self._deterministic_encoder = LSTMModel(
                 input_size=args.input_size,  # 2
-                lstm_hidden_size=args.lstm_hidden_size,  # استفاده از lstm_hidden_size
+                lstm_hidden_size=args.lstm_hidden_size,  # 32
                 num_layers=args.lstm_layers,
                 dropout=args.lstm_dropout
             )
@@ -35,26 +39,21 @@ class LSTM_Evd_Model(np_model):
         if self._use_latent_path:
             raise NotImplementedError
 
+        # اصلاح decoder_output_size
+        decoder_input_size = args.lstm_hidden_size + args.x_size  # 32 + 1 = 33
+        decoder_output_size = [decoder_input_size, 64, 64]  # لایه‌های خطی: [33, 64, 64]
         self._evidential_decoder = ANPEvidentialDecoder(decoder_output_size, args=args)
 
     def forward(self, query, target_y=None, epoch=0, it=0):
-        '''
-        :param query: ( (context_x, context_y), target_x ).
-        :param target_y:
-        :param it:
-        :return:
-        '''
         (context_x, context_y), target_x = query
 
-        # Skipped use latent path
         if self._use_latent_path:
             raise NotImplementedError
 
         if self._use_deterministic_path:
             deterministic_rep = self._deterministic_encoder(context_x, context_y, target_x)
-            # Expand representation to match target_x's sequence length
             seq_len = target_x.shape[1]  # num_total_points
-            representation = deterministic_rep.unsqueeze(1).repeat(1, seq_len, 1)  # (batch_size, seq_len, hidden_size)
+            representation = deterministic_rep.unsqueeze(1).repeat(1, seq_len, 1)  # (batch_size, seq_len, lstm_hidden_size)
         else:
             raise ValueError("You need the deterministic path for the encoder")
 
@@ -63,7 +62,6 @@ class LSTM_Evd_Model(np_model):
         recons_loss = None
         kl_loss = None
         loss = None
-        # Training tasks
         if target_y is not None:
             loss = torch.zeros(size=(1,), device=target_y.device)
             if self._use_deterministic_path or self._use_latent_path:
@@ -84,6 +82,7 @@ class LSTM_Evd_Model(np_model):
         scale = torch.sqrt(beta * (1 + v) / v / alpha)
         dist = torch.distributions.studentT.StudentT(df=df, loc=loc, scale=scale)
         return dist, recons_loss, kl_loss, loss, mu, v, alpha, beta
+
 
 class ANPModel(np_model):
 
