@@ -1,6 +1,17 @@
 def the_args():
     import argparse
     parser = argparse.ArgumentParser()
+
+    parser.add_argument('-input_size', '--input_size', type=int, default=2, help="number of features")
+    parser.add_argument('-lstm_layers', '--lstm_layers', type=int, default=1, help='number of lstm layer --> for reduce complexity')
+    parser.add_argument('-lstm_hidden_size', '--lstm_hidden_size', type=int, default=32, help='for small dayasets')
+    parser.add_argument('-lstm_dropout', '--lstm_dropout', type=int, default=0.4, help='forbidden overfit')
+    parser.add_argument('-channels', '--channels', type=int, default=1, help='only close')
+    # parser.add_argument('-lstm_dropout', '--lstm_dropout', type=int, default=0.4, help='forbidden overfit')
+    # parser.add_argument('-num_epochs', '--num_epochs', type=int, default=50, help='Number of training iterations')
+    
+    
+    
     parser.add_argument('-dataset', '--dataset', type=str, default='mnist', help="1d-sin, gp, mnist, cifar10, celeba..The dataset name")
     parser.add_argument('-seed', '--seed', type=int, default=0, help='Seed for experiment')
     parser.add_argument('-tr_it', '--training_iterations', type=int, default=20000, help='Number of training iterations')

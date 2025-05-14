@@ -32,14 +32,20 @@ print("Decoder sizes: ", decoder_sizes)
 
 
 from models.np_complete_models import Evd_det_model
+from models.np_complete_models import LSTM_Evd_Model
 
-model = Evd_det_model(latent_encoder_sizes,
-                 determministic_encoder_sizes,
-                 decoder_sizes,
-                 args,
-                 attention,
-                 ).to(device)
-
+# model = Evd_det_model(latent_encoder_sizes,
+#                  determministic_encoder_sizes,
+#                  decoder_sizes,
+#                  args,
+#                  attention,
+#                  ).to(device)
+model = LSTM_Evd_Model(latent_encoder_sizes,
+                determministic_encoder_sizes,
+                decoder_sizes,
+                args,
+                attention,
+                ).to(device)
 optimizer = optim.Adam(model.parameters(), lr=args.learning_rate, weight_decay=1e-5)
 
 # model = load_model("/home/deep/Desktop/IMPLEMENTATION/MAY/ANPHeterogenous/May18/saved_models/model_9000.pth")
