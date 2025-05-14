@@ -40,14 +40,14 @@ def plot_functions_1d_np(target_x, target_y, context_x, context_y, pred_y, var, 
     else:
         plt.show()
 
-def plot_functions_alea_ep_1d(target_x, target_y, context_x, context_y, pred_y, epis,alea,save_img=True,save_to_dir="eval_images", save_name="a.png"):
-    plt.rcParams.update({'font.size': 22})
+def plot_functions_alea_ep_1d(target_x, target_y, context_x, context_y, pred_y, epis, alea, save_img=True, save_to_dir="eval_images", save_name="a.png"):
+    import matplotlib.pyplot as plt
+    plt.rcParams.update({'font.size': 16})
     plt.clf()
-    plt.plot(target_x[0], target_y[0], "k:", linewidth=2.6, label = "True Function")
-    plt.plot(target_x[0], pred_y[0], "b", linewidth=2, label = "Prediction")
-    plt.plot(context_x[0], context_y[0], 'ko', markersize=8)
-    plt.vlines(x=5.0, ymin=-4, ymax=8, linestyles='--')
-    # plt.title(r"$\lambda_1 = 0.1, \lambda_2 = 1.0$")
+    plt.plot(target_x[0], target_y[0], "k:", linewidth=2.6, label="True Function")
+    plt.plot(target_x[0], pred_y[0], "b", linewidth=2, label="Prediction")
+    plt.plot(context_x[0], context_y[0], 'ko', markersize=6)  # اندازه نشانگرها کاهش یافت
+    plt.vlines(x=0.5, ymin=-0.2, ymax=1.2, linestyles='--')  # خط عمودی به x=0.5 تغییر کرد
     plt.title(r"ENP-C")
     plt.fill_between(
         target_x[0, :, 0],
@@ -56,7 +56,7 @@ def plot_functions_alea_ep_1d(target_x, target_y, context_x, context_y, pred_y, 
         alpha=0.7,
         facecolor='#65c999',
         interpolate=True,
-        label = "Epistemic Unc.",
+        label="Epistemic Unc."
     )
     # plt.fill_between(
     #     target_x[0, :, 0],
@@ -65,29 +65,21 @@ def plot_functions_alea_ep_1d(target_x, target_y, context_x, context_y, pred_y, 
     #     alpha=0.2,
     #     facecolor='red',
     #     interpolate=True,
-    #     label = "Aleatoric",
+    #     label="Aleatoric"
     # )
 
     plt.xlabel("X value")
     plt.ylabel("Y value")
-    plt.xlim(-5,10)
-    plt.ylim(-5,12)
+    plt.xlim(0, 1)  # بازه نرمال‌شده
+    plt.ylim(-0.2, 1.2)  # کمی حاشیه برای وضوح
 
-    # plt.xlim(-2,3)
-    # plt.ylim(-3,3)
-    # plt.ylim(-0.6,1.0)
-    # plt.ylim(-0.7,1.5)
+    plt.grid(True)  # شبکه فعال شد برای وضوح بهتر
+    plt.legend()  # مکان پیش‌فرض legend مناسب است
 
-    # plot details
-    plt.grid(False)
-    # plt.legend(loc=2, bbox_to_anchor=(1,1))
-    plt.legend()#loc='upper left')
-    # plt.show()
     if not os.path.exists(save_to_dir):
         os.mkdir(save_to_dir)
     if save_img:
-        plt.savefig(f"{save_to_dir}/Al5Ep{save_name}" + ".png", format='png',dpi=300,bbox_inches='tight')
-        # plt.show()
+        plt.savefig(f"{save_to_dir}/Al5Ep{save_name}.png", format='png', dpi=300, bbox_inches='tight')
     else:
         plt.show()
 
