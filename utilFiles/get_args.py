@@ -55,9 +55,9 @@ def the_args():
     parser.add_argument('-load_mdl', '--load_model', type=str, default="False",
                         help="whether to load a model or scratch train")
 
-    parser.add_argument('-nig_nll_reg_coef', '--nig_nll_reg_coef', type=float, default=0.1,
+    parser.add_argument('-nig_nll_reg_coef', '--nig_nll_reg_coef', type=float, default=2.0,
                         help="EDL nll reg balancing factor")
-    parser.add_argument('-nig_nll_ker_reg_coef', '--nig_nll_ker_reg_coef', type=float, default=1.0,
+    parser.add_argument('-nig_nll_ker_reg_coef', '--nig_nll_ker_reg_coef', type=float, default=0.5,
                         help='EDL kernel reg balancing factor')
 
     # parser.add_argument('-beta_constraint_add', '--beta_constraint_add', type=float, default=0.1, help="EDL output beta constraint")
