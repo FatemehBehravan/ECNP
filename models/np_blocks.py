@@ -292,6 +292,10 @@ class ANPEvidentialDecoder(nn.Module):
         batch_size, set_size, d = target_x.shape
         input_data = torch.cat((representation, target_x), dim=-1)
 
+        # print("representation shape:", representation.shape)  # انتظار: (1, 400, 128)
+        # print("target_x shape:", target_x.shape)  # انتظار: (1, 400, 1)
+        # print("input_data shape:", input_data.shape)  # انتظار: (1, 400, 129)
+        # print("linear_layers_list[0] weight shape:", self.linear_layers_list[0].weight.shape)
         x = forward_pass_linear_layer_relu(input_data, self.linear_layers_list)
 
 

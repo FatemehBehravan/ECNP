@@ -14,26 +14,12 @@ class LSTMModel(nn.Module):
             hidden_size=lstm_hidden_size,
             num_layers=num_layers,
             batch_first=True,
-            bidirectional=True,
+            bidirectional=False,
             dropout=dropout if num_layers > 1 else 0
         )
         
-        self.layer_norm = nn.LayerNorm(lstm_hidden_size * 2)
-        
-        self.attention = nn.MultiheadAttention(
-            embed_dim=lstm_hidden_size * 2,
-            num_heads=4,
-            dropout=dropout,
-            batch_first=True
-        )
-        
-        self.fc = nn.Sequential(
-            nn.Linear(lstm_hidden_size * 2, lstm_hidden_size),
-            nn.ReLU(),
-            nn.Dropout(dropout),
-            nn.Linear(lstm_hidden_size, lstm_hidden_size)
-        )
-        
+        self.fc = nn.Linear(lstm_hidden_size, lstm_hidden_size)
+
         for name, param in self.named_parameters():
             if 'weight' in name and param.dim() >= 2:
                 nn.init.xavier_uniform_(param)
@@ -42,10 +28,8 @@ class LSTMModel(nn.Module):
 
     def forward(self, context_x, context_y, target_x):
         x = torch.cat([context_x, context_y], dim=-1)
-        lstm_out, (h_n, c_n) = self.lstm(x)
-        lstm_out = self.layer_norm(lstm_out)
-        attn_output, attn_weights = self.attention(lstm_out, lstm_out, lstm_out)
-        out = attn_output.mean(dim=1)
+        out, (h_n, c_n) = self.lstm(x)
+        out = out[:, -1, :]
         out = self.fc(out)
         return out
 

@@ -47,8 +47,8 @@ class LSTM_Evd_Model(np_model):
         # self._evidential_decoder = ANPEvidentialDecoder(decoder_output_size, args=args)
         
         # برای bidirectional LSTM
-        decoder_input_size = args.lstm_hidden_size * 2 + args.x_size  # 64 * 2 + 1 = 129
-        decoder_output_size = [decoder_input_size, 64, 64]  # [129, 64, 64]
+        decoder_input_size = args.lstm_hidden_size + args.x_size  # 64 + 1 = 65
+        decoder_output_size = [decoder_input_size, 64, 64]  # [65, 64, 64]
         self._evidential_decoder = ANPEvidentialDecoder(decoder_output_size, args=args)
     
     
