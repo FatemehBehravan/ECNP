@@ -40,10 +40,19 @@ class LSTM_Evd_Model(np_model):
             raise NotImplementedError
 
         # اصلاح decoder_output_size
-        decoder_input_size = args.lstm_hidden_size + args.x_size  # 32 + 1 = 33
-        decoder_output_size = [decoder_input_size, 64, 64]  # لایه‌های خطی: [33, 64, 64]
+        
+        # برای simple LSTM:::
+        # decoder_input_size = args.lstm_hidden_size + args.x_size  # 32 + 1 = 33
+        # decoder_output_size = [decoder_input_size, 64, 64]  # لایه‌های خطی: [33, 64, 64]
+        # self._evidential_decoder = ANPEvidentialDecoder(decoder_output_size, args=args)
+        
+        # برای bidirectional LSTM
+        decoder_input_size = args.lstm_hidden_size * 2 + args.x_size  # 64 * 2 + 1 = 129
+        decoder_output_size = [decoder_input_size, 64, 64]  # [129, 64, 64]
         self._evidential_decoder = ANPEvidentialDecoder(decoder_output_size, args=args)
-
+    
+    
+    
     def forward(self, query, target_y=None, epoch=0, it=0):
         (context_x, context_y), target_x = query
 
