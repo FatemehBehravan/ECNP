@@ -31,8 +31,7 @@ decoder_sizes += [4*args.channels]
 print("Decoder sizes: ", decoder_sizes)
 
 
-from models.np_complete_models import Evd_det_model
-from models.np_complete_models import LSTM_Evd_Model
+# from models.np_complete_models import Evd_det_model
 
 # model = Evd_det_model(latent_encoder_sizes,
 #                  determministic_encoder_sizes,
@@ -42,13 +41,30 @@ from models.np_complete_models import LSTM_Evd_Model
 #                  ).to(device)
 
 
-model = LSTM_Evd_Model(latent_encoder_sizes,
-                determministic_encoder_sizes,
-                decoder_sizes,
-                args,
-                attention,
-                ).to(device)
+##############################################################
 
+
+# from models.np_complete_models import LSTM_Evd_Model
+
+# model = LSTM_Evd_Model(latent_encoder_sizes,
+#                 determministic_encoder_sizes,
+#                 decoder_sizes,
+#                 args,
+#                 attention,
+#                 ).to(device)
+
+
+##############################################################
+
+
+from models.np_complete_models import Transformer_Evd_Model
+
+model = Transformer_Evd_Model(latent_encoder_sizes,
+                      determministic_encoder_sizes,
+                      decoder_sizes,
+                      args,
+                      attention,
+                      ).to(device)
 
 optimizer = optim.Adam(model.parameters(), lr=args.learning_rate, weight_decay=1e-5)
 
