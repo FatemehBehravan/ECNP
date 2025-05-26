@@ -45,18 +45,17 @@ def plot_functions_alea_ep_1d(target_x, target_y, context_x, context_y, pred_y, 
     plt.rcParams.update({'font.size': 16})
     plt.clf()
 
-    # رسم تابع واقعی (فقط اولین ویژگی)
+    # رسم تابع واقعی
     plt.plot(target_x[0, :, 0], target_y[0, :, 0], "k:", linewidth=2.6, label="True Function")
 
-    # رسم پیش‌بینی (فقط اولین ویژگی)
+    # رسم پیش‌بینی
     plt.plot(target_x[0, :, 0], pred_y[0, :, 0], "b", linewidth=2, label="Prediction")
 
-    # رسم نقاط زمینه (context_y با target_x متناظر)
-    context_indices = slice(0, context_x.shape[1])  # نقاط زمینه
-    plt.plot(target_x[0, context_indices, 0], context_y[0, :, 0], 'ko', markersize=6, label="Context Points")
+    # رسم نقاط زمینه
+    plt.plot(context_x[0, :, 0], context_y[0, :, 0], 'ko', markersize=6, label="Context Points")
 
     # خط عمودی در x=0.5
-    plt.vlines(x=0.5, ymin=-0.2, ymax=1.2, linestyles='--', colors='gray')
+    plt.vlines(x=0.85, ymin=-0.2, ymax=1.2, linestyles='--', colors='gray')
 
     plt.title("ENP-C")
 
