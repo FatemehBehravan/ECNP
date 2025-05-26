@@ -37,8 +37,8 @@ class Transformer_Evd_Model(np_model):
         if self._use_latent_path:
             raise NotImplementedError
 
-        decoder_input_size = args.lstm_hidden_size + args.x_size
-        decoder_output_size = [decoder_input_size, 64, 64]
+        decoder_input_size = args.lstm_hidden_size + args.x_size # 64 + 4 = 68
+        decoder_output_size = [decoder_input_size, 64, 64] 
         self._evidential_decoder = ANPEvidentialDecoder(decoder_output_size, args=args)
 
     def forward(self, query, target_y=None, epoch=0, it=0):

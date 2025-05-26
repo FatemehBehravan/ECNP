@@ -15,7 +15,7 @@ class NumericDataset(object):
     def __init__(self,
                  batch_size,
                  max_num_context,
-                 x_size=1,
+                 x_size=3,
                  y_size=1,
                  testing=False,
                  device="cpu"):
@@ -29,15 +29,23 @@ class NumericDataset(object):
 
     def generate_curves(self, device, fixed_num_context=-1):
         def load_csv_data(file_path):
-            data = pd.read_csv(file_path)
-            data['counter'] = data['counter'].astype(int)
-            data['colse'] = data['close'].astype(int)
-            data = data.tail(400)
+            df = pd.read_csv(file_path)
+            df['date'] = pd.to_datetime(df['time'], unit='s')
+            df['hour'] = df['date'].dt.hour
+            df['hour_sin'] = np.sin(2 * np.pi * df['hour'] / 24)
+
+            df['minute'] = df['date'].dt.minute
+            df['minute_sin'] = np.sin(2 * np.pi * df['minute'] / 60)
+
+            df['counter'] = df['counter'].astype(int)
+            df['colse'] = df['close'].astype(int)
+            df = df.tail(400)
 
             scaler = MinMaxScaler()
-            scaled_data = scaler.fit_transform(data[['counter', 'close']])
-            scaled_data = pd.DataFrame(scaled_data, columns=['counter', 'close'])
-            x = scaled_data['counter'].values
+            scaled_data = scaler.fit_transform(df[['counter', 'hour_sin', 'minute_sin', 'close']])
+            scaled_data = pd.DataFrame(scaled_data, columns=['counter', 'hour_sin', 'minute_sin', 'close'])
+
+            x = scaled_data[['counter', 'hour_sin', 'minute_sin']].values
             y = scaled_data['close'].values
             return x, y
 
@@ -48,7 +56,6 @@ class NumericDataset(object):
 
         file_path = './datasets/XAUUSD.csv'
         x_values, y_values = load_csv_data(os.path.join(file_path))
-
         num_85_percent = int(len(x_values) * 0.85)
 
         if self._testing:
@@ -68,6 +75,7 @@ class NumericDataset(object):
         y_values = torch.tensor(y_values, dtype=torch.float32)
         x_values = x_values.view(1, num_total_points, self._x_size)  # (1, num_points, 1)
         y_values = y_values.view(1, num_total_points, self._y_size)  # (1, num_points, 1)
+
 
         task_property = torch.tensor(1)
 

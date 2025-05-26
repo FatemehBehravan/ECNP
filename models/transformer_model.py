@@ -2,7 +2,7 @@ import torch
 import torch.nn as nn
 
 class TransformerModel(nn.Module):
-    def __init__(self, input_size=2, hidden_size=64, num_layers=2, num_heads=4, dropout=0.3):
+    def __init__(self, input_size, hidden_size, num_layers, num_heads, dropout):
         super(TransformerModel, self).__init__()
         self.hidden_size = hidden_size
         self.num_layers = num_layers
