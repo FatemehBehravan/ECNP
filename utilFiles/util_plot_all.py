@@ -44,11 +44,23 @@ def plot_functions_alea_ep_1d(target_x, target_y, context_x, context_y, pred_y, 
     import matplotlib.pyplot as plt
     plt.rcParams.update({'font.size': 16})
     plt.clf()
-    plt.plot(target_x[0], target_y[0], "k:", linewidth=2.6, label="True Function")
-    plt.plot(target_x[0], pred_y[0], "b", linewidth=2, label="Prediction")
-    plt.plot(context_x[0], context_y[0], 'ko', markersize=6)  # اندازه نشانگرها کاهش یافت
-    plt.vlines(x=0.5, ymin=-0.2, ymax=1.2, linestyles='--')  # خط عمودی به x=0.5 تغییر کرد
-    plt.title(r"ENP-C")
+
+    # رسم تابع واقعی (فقط اولین ویژگی)
+    plt.plot(target_x[0, :, 0], target_y[0, :, 0], "k:", linewidth=2.6, label="True Function")
+
+    # رسم پیش‌بینی (فقط اولین ویژگی)
+    plt.plot(target_x[0, :, 0], pred_y[0, :, 0], "b", linewidth=2, label="Prediction")
+
+    # رسم نقاط زمینه (context_y با target_x متناظر)
+    context_indices = slice(0, context_x.shape[1])  # نقاط زمینه
+    plt.plot(target_x[0, context_indices, 0], context_y[0, :, 0], 'ko', markersize=6, label="Context Points")
+
+    # خط عمودی در x=0.5
+    plt.vlines(x=0.5, ymin=-0.2, ymax=1.2, linestyles='--', colors='gray')
+
+    plt.title("ENP-C")
+
+    # رسم عدم قطعیت اپستمیک (فقط برای اولین ویژگی)
     plt.fill_between(
         target_x[0, :, 0],
         pred_y[0, :, 0] - epis[0, :, 0],
@@ -58,6 +70,23 @@ def plot_functions_alea_ep_1d(target_x, target_y, context_x, context_y, pred_y, 
         interpolate=True,
         label="Epistemic Unc."
     )
+
+
+
+    # plt.plot(target_x[0], target_y[0], "k:", linewidth=2.6, label="True Function")
+    # plt.plot(target_x[0], pred_y[0], "b", linewidth=2, label="Prediction")
+    # plt.plot(context_x[0], context_y[0], 'ko', markersize=6)  # اندازه نشانگرها کاهش یافت
+    # plt.vlines(x=0.5, ymin=-0.2, ymax=1.2, linestyles='--')  # خط عمودی به x=0.5 تغییر کرد
+    # plt.title(r"ENP-C")
+    # plt.fill_between(
+    #     target_x[0, :, 0],
+    #     pred_y[0, :, 0] - epis[0, :, 0],
+    #     pred_y[0, :, 0] + epis[0, :, 0],
+    #     alpha=0.7,
+    #     facecolor='#65c999',
+    #     interpolate=True,
+    #     label="Epistemic Unc."
+    # )
     # plt.fill_between(
     #     target_x[0, :, 0],
     #     pred_y[0, :, 0] - alea[0, :, 0],
@@ -74,7 +103,7 @@ def plot_functions_alea_ep_1d(target_x, target_y, context_x, context_y, pred_y, 
     plt.ylim(-0.2, 1.2)  # کمی حاشیه برای وضوح
 
     plt.grid(True)  # شبکه فعال شد برای وضوح بهتر
-    plt.legend()  # مکان پیش‌فرض legend مناسب است
+    plt.legend(fontsize='small')  # مکان پیش‌فرض legend مناسب است
 
     if not os.path.exists(save_to_dir):
         os.mkdir(save_to_dir)
