@@ -74,8 +74,8 @@ def the_args():
     parser.add_argument('-ev_lat_v_max', '--ev_lat_v_max', type=float, default=20.0, help="EDL output v maximum value")
 
     #noisy_training_tasks
-    parser.add_argument('-outlier_training_tasks', '--outlier_training_tasks', default="False", type=str, help="Are there outliers in training tasks(True/False)")
-    parser.add_argument('-outlier_val', '--outlier_val', default=0.0, type=float, help="How extreme are the outliers (add)")
+    parser.add_argument('-outlier_training_tasks', '--outlier_training_tasks', default="True", type=str, help="Are there outliers in training tasks(True/False)")
+    parser.add_argument('-outlier_val', '--outlier_val', default=1, type=float, help="How extreme are the outliers (add)")
     parser.add_argument('-active_task_sel', '--active_task_sel', type=str, default='False', help='Do Task Selection?')
     parser.add_argument('-use_domain_knowledge', '--use_domain_knowledge', type=str, default='False', help = 'Use specific tasks')
 

@@ -3,6 +3,10 @@ import torch.nn as nn
 from torch.nn import functional as F
 import torch.optim as optim
 import time
+import matplotlib.pyplot as plt
+import os
+import numpy as np
+
 
 # All the arguments here
 from utilFiles.get_args import the_args
@@ -217,16 +221,17 @@ def one_iteration_training(query, target_y):
 
     loss.backward()
     optimizer.step()
+    return loss.item()  # Return Train Loss
 
 def train_1d_regression(tr_time_end = 0, tr_time_start=0):
-    for tr_index in range(args.training_iterations+1):
-        save_tracker_val = tr_index % args.test_1d_every
-        if save_tracker_val == 0 or tr_index == args.training_iterations:
-            tr_time_taken = tr_time_end - tr_time_start
-            average_test_loss = test_model_and_save_results(tr_index, tr_time_taken)
+  
+    # ذخیره Loss برای رسم
+    train_losses = []
+    test_losses = []
+    test_iterations = []
 
-            save_model(f"{save_to_dir}/saved_models/model_{tr_index}.pth", model)
-            tr_time_start = time.time()
+    for tr_index in range(args.training_iterations+1):
+
         # Training phase
         data_train = dataset_train.generate_curves(device=device, fixed_num_context=args.max_context_points)
         query, target_y = data_train.query, data_train.target_y
@@ -239,10 +244,43 @@ def train_1d_regression(tr_time_end = 0, tr_time_start=0):
             for i in range(bs):
                 target_y[i, y_dim[i], 0] += args.outlier_val  # noise_val
 
-        one_iteration_training(query, target_y)
+        train_loss = one_iteration_training(query, target_y)
+        train_losses.append(train_loss)
 
+        # Test phase
+        save_tracker_val = tr_index % args.test_1d_every
+        if save_tracker_val == 0 or tr_index == args.training_iterations:
+            tr_time_taken = tr_time_end - tr_time_start
+            average_test_loss = test_model_and_save_results(tr_index, tr_time_taken)
+            test_losses.append(average_test_loss.item())
+            test_iterations.append(tr_index)
+
+            save_model(f"{save_to_dir}/saved_models/model_{tr_index}.pth", model)
+            tr_time_start = time.time()
+
+        
 
         tr_time_end = time.time()
+
+    # Plotting Train & Test Loss
+    window_size = 100
+    train_losses_smooth = np.convolve(train_losses, np.ones(window_size)/window_size, mode='valid')
+
+    plt.figure(figsize=(10, 6))
+    plt.plot(range(len(train_losses_smooth)), train_losses_smooth, 'r-', label='Train Loss', linewidth=2)
+    plt.plot(test_iterations, test_losses, 'b-', label='Test Loss', linewidth=2, markersize=4)
+    plt.xlabel('Iteration')
+    plt.ylabel('Loss')
+    plt.title('Train and Test Loss over Iterations')
+    plt.legend()
+    plt.grid(True, linestyle='--', alpha=0.7)
+    plt.ylim(0, max(max(train_losses_smooth), max(test_losses)) * 1.1) # تنظیم پویای محور y
+    plt.tight_layout()
+
+    os.makedirs(f"{save_to_dir}/eval_images", exist_ok=True)
+    plt.savefig(f"{save_to_dir}/eval_images/train_test_loss.png", dpi=300, bbox_inches='tight')
+    plt.close()
+
 
 
 def train_image_completion(tr_time_end = 0, tr_time_start=0):
