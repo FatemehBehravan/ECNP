@@ -19,11 +19,10 @@ def forward_pass_linear_layer_relu(x, linear_layers_list):
     Then it is passed through the linear_layers of the network with relu activation function
     '''
     # batch size, number of context points, context_point_shape (i.e may be just 3)
-    batch_size, set_size, filter_size = x.shape
-    x = x.view(batch_size * set_size, -1)
+    batch_size, num_points, seq_len, feature_dim = x.shape
+    x = x.view(batch_size * num_points * seq_len, feature_dim)
     for i, linear in enumerate(linear_layers_list[:-1]):
         x = torch.relu(linear(x))
     # print("linear layer list: ", linear_layers_list)
     x = linear_layers_list[-1](x)
     return x
-

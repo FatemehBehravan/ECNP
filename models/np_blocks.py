@@ -264,12 +264,10 @@ class ANPEvidentialDecoder(nn.Module):
     '''
     The Decoder
     '''
-
     def __init__(self, output_sizes, args=None):
         super(ANPEvidentialDecoder, self).__init__()
-        # print("output sizes: ",  output_sizes)
         self.linear_layers_list = get_the_network_linear_list(output_sizes[:-1])
-        if args == None:
+        if args is None:
             print("pass args to ANPEvidentialDecoder in np_blocs.py")
             raise NotImplementedError
         self._channels = args.channels
@@ -280,43 +278,50 @@ class ANPEvidentialDecoder(nn.Module):
         self.transform_gamma = nn.Sequential(nn.ReLU(), nn.Linear(output_sizes[-2], 64), nn.ReLU(),
                                              nn.Linear(64, args.channels))
         self.transform_v = nn.Sequential(nn.ReLU(), nn.Linear(output_sizes[-2], 64), nn.ReLU(),
-                                             nn.Linear(64, args.channels))
+                                         nn.Linear(64, args.channels))
         self.transform_alpha = nn.Sequential(nn.ReLU(), nn.Linear(output_sizes[-2], 64), nn.ReLU(),
                                              nn.Linear(64, args.channels))
         self.transform_beta = nn.Sequential(nn.ReLU(), nn.Linear(output_sizes[-2], 64), nn.ReLU(),
-                                             nn.Linear(64, args.channels))
+                                            nn.Linear(64, args.channels))
+
     def evidence(self, x):
         return F.softplus(x) + 1e-6
 
     def forward(self, representation, target_x):
-        batch_size, set_size, d = target_x.shape
+        # ابعاد target_x: (batch_size, num_points, seq_len, feature_dim)
+        batch_size, num_points, seq_len, d = target_x.shape
         input_data = torch.cat((representation, target_x), dim=-1)
 
-        # print("representation shape:", representation.shape)  # انتظار: (1, 400, 128)
-        # print("target_x shape:", target_x.shape)  # انتظار: (1, 400, 1)
-        # print("input_data shape:", input_data.shape)  # انتظار: (1, 400, 129)
+        # ابعاد input_data: (batch_size, num_points, seq_len, representation_dim + d)
+        # print("representation shape:", representation.shape)  # انتظار: (1, 50, 11, 64)
+        # print("target_x shape:", target_x.shape)  # انتظار: (1, 50, 11, 4)
+        # print("input_data shape:", input_data.shape)  # انتظار: (1, 50, 11, 68)
         # print("linear_layers_list[0] weight shape:", self.linear_layers_list[0].weight.shape)
+
+        # حذف مسطح‌سازی در اینجا، زیرا forward_pass_linear_layer_relu خودش این کار را انجام می‌دهد
         x = forward_pass_linear_layer_relu(input_data, self.linear_layers_list)
 
+        # بازگرداندن به شکل اصلی برای خروجی‌ها
+        x = x.view(batch_size, num_points, seq_len, -1)  # (1, 50, 11, output_sizes[-2])
 
-        gamma = self.transform_gamma(x).view(batch_size,set_size,-1)
-        logv = self.transform_v(x).view(batch_size,set_size,-1)
-        logalpha = self.transform_alpha(x).view(batch_size,set_size,-1)
-        logbeta = self.transform_beta(x).view(batch_size,set_size,-1)
+        gamma = self.transform_gamma(x).view(batch_size, num_points, seq_len, -1)
+        logv = self.transform_v(x).view(batch_size, num_points, seq_len, -1)
+        logalpha = self.transform_alpha(x).view(batch_size, num_points, seq_len, -1)
+        logbeta = self.transform_beta(x).view(batch_size, num_points, seq_len, -1)
 
-
-        v = self.evidence(logv)  # + 1.0
+        v = self.evidence(logv)
         alpha = self.evidence(logalpha)
         alpha = alpha + 1
         beta = self.evidence(logbeta)
 
-        # The constraints
+        # اعمال محدودیت‌ها
         alpha_thr = self._ev_dec_alpha_max * torch.ones(alpha.shape).to(alpha.device)
         alpha = torch.min(alpha, alpha_thr)
         v_thr = self._ev_dec_v_max * torch.ones(v.shape).to(v.device)
         v = torch.min(v, v_thr)
         beta_min = self._ev_dec_beta_min * torch.ones(beta.shape).to(beta.device)
         beta = beta + beta_min
+
         return gamma, v, alpha, beta
 
 

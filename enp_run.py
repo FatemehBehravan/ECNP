@@ -137,6 +137,7 @@ def test_model_and_save_results(epoch, tr_time_taken = 0):
                 index = loop_item
                 data_test = dataset_test.generate_curves(device=device, fixed_num_context=args.max_context_points)
                 query, target_y = data_test.query, data_test.target_y
+                (context_x, context_y), target_x = query
 
 
 
@@ -188,17 +189,28 @@ def test_model_and_save_results(epoch, tr_time_taken = 0):
 
     # Now Plotting
     if task == "1d_regression":
+        # استخراج داده‌ها با توجه به ابعاد جدید
         (context_x, context_y), target_x = query
         epis = beta / (v * (alpha - 1))
         alea = beta / (alpha - 1)
+
+        # تنظیم ابعاد برای پلات (استخراج اولین نقطه و تغییر ترتیب)
+        context_x_plot = context_x[0, 0, :, :].detach().cpu().numpy().transpose(1, 0)  # (21, 4) -> (4, 21)
+        context_y_plot = context_y[0, 0, :, 0].detach().cpu().numpy()  # (21, 1) -> (21,)
+        target_x_plot = target_x[0, 0, :, :].detach().cpu().numpy().transpose(1, 0)  # (11, 4) -> (4, 11)
+        target_y_plot = target_y[0, 0, :, 0].detach().cpu().numpy()  # (11, 1) -> (11,)
+        mu_plot = mu[0, 0, :, 0].detach().cpu().numpy()  # (11, 1) -> (11,)
+        epis_plot = epis[0, 0, :, 0].detach().cpu().numpy()  # (11, 1) -> (11,)
+        alea_plot = alea[0, 0, :, 0].detach().cpu().numpy()  # (11, 1) -> (11,)
+
         plot_functions_alea_ep_1d(
-            target_x.detach().cpu().numpy(),
-            data_test.target_y.detach().cpu().numpy(),
-            context_x.detach().cpu().numpy(),
-            context_y.detach().cpu().numpy(),
-            mu.detach().cpu().numpy(),
-            epis.detach().cpu().numpy(),
-            alea.detach().cpu().numpy(),
+            target_x_plot,
+            target_y_plot,
+            context_x_plot,
+            context_y_plot,
+            mu_plot,
+            epis_plot,
+            alea_plot,
             save_img=True,
             save_to_dir=f"{save_to_dir}/saved_images",
             save_name=str(epoch),
@@ -223,26 +235,24 @@ def one_iteration_training(query, target_y):
     optimizer.step()
     return loss.item()  # Return Train Loss
 
-def train_1d_regression(tr_time_end = 0, tr_time_start=0):
-  
+def train_1d_regression(tr_time_end=0, tr_time_start=0):
     # ذخیره Loss برای رسم
     train_losses = []
     test_losses = []
     test_iterations = []
 
-    for tr_index in range(args.training_iterations+1):
-
+    for tr_index in range(args.training_iterations + 1):
         # Training phase
         data_train = dataset_train.generate_curves(device=device, fixed_num_context=args.max_context_points)
         query, target_y = data_train.query, data_train.target_y
 
         if args.outlier_training_tasks:
-            bs, y_len, dim_3 = target_y.shape
-
-            y_dim = torch.argmax(torch.rand(bs, y_len), dim=1).numpy()
+            bs, y_len, dim_3, dim_4 = target_y.shape
+            y_dim = torch.argmax(torch.rand(bs, y_len, dim_4), dim=2).numpy()
 
             for i in range(bs):
-                target_y[i, y_dim[i], 0] += args.outlier_val  # noise_val
+                for j in range(y_len):
+                    target_y[i, j, y_dim[i, j], 0] += args.outlier_val  # noise_val
 
         train_loss = one_iteration_training(query, target_y)
         train_losses.append(train_loss)
@@ -258,13 +268,11 @@ def train_1d_regression(tr_time_end = 0, tr_time_start=0):
             save_model(f"{save_to_dir}/saved_models/model_{tr_index}.pth", model)
             tr_time_start = time.time()
 
-        
-
         tr_time_end = time.time()
 
     # Plotting Train & Test Loss
     window_size = 100
-    train_losses_smooth = np.convolve(train_losses, np.ones(window_size)/window_size, mode='valid')
+    train_losses_smooth = np.convolve(train_losses, np.ones(window_size) / window_size, mode='valid')
 
     plt.figure(figsize=(10, 6))
     plt.plot(range(len(train_losses_smooth)), train_losses_smooth, 'r-', label='Train Loss', linewidth=2)
@@ -274,25 +282,22 @@ def train_1d_regression(tr_time_end = 0, tr_time_start=0):
     plt.title('Train and Test Loss over Iterations')
     plt.legend()
     plt.grid(True, linestyle='--', alpha=0.7)
-    plt.ylim(0, max(max(train_losses_smooth), max(test_losses)) * 1.1) # تنظیم پویای محور y
+    plt.ylim(0, max(max(train_losses_smooth), max(test_losses)) * 1.1)  # تنظیم پویای محور y
     plt.tight_layout()
 
     os.makedirs(f"{save_to_dir}/eval_images", exist_ok=True)
     plt.savefig(f"{save_to_dir}/eval_images/train_test_loss.png", dpi=300, bbox_inches='tight')
     plt.close()
 
-
-
-def train_image_completion(tr_time_end = 0, tr_time_start=0):
+def train_image_completion(tr_time_end=0, tr_time_start=0):
     for epoch in range(args.epochs):
-
-        #Test the model
-        if epoch % args.save_results_every == 0 or epoch == args.epochs-1:
+        # Test the model
+        if epoch % args.save_results_every == 0 or epoch == args.epochs - 1:
             tr_time_taken = tr_time_end - tr_time_start
             average_test_loss = test_model_and_save_results(epoch, tr_time_taken)
 
-        #Save the model
-        if epoch % args.save_models_every == 0 or epoch == args.epochs-1:
+        # Save the model
+        if epoch % args.save_models_every == 0 or epoch == args.epochs - 1:
             save_model(f"{save_to_dir}/saved_models/model_{epoch}.pth", model)
 
         tr_time_start = time.time()
@@ -304,12 +309,10 @@ def train_image_completion(tr_time_end = 0, tr_time_start=0):
 
             batch_x = batch_x_instance.to(device)
 
-            query, target_y,_,_ = get_context_target_2d(batch_x, num_ctx_pts=args.max_context_points)
-            # print("target y: ", target_y.shape)
+            query, target_y, _, _ = get_context_target_2d(batch_x, num_ctx_pts=args.max_context_points)
 
             if args.outlier_training_tasks:
                 bs, y_len, dim_3 = target_y.shape
-
                 y_dim = torch.argmax(torch.rand(bs, y_len), dim=1).numpy()
 
                 for i in range(bs):
@@ -324,12 +327,10 @@ def main():
     if task == "1d_regression":
         print("Regression, Dataset: ", args.dataset)
         train_1d_regression()
-
     elif task == "image_completion":
         print("Image Completion, Dataset: ", args.dataset)
         train_image_completion()
     pass
-
 
 if __name__ == "__main__":
     main()

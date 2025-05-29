@@ -49,8 +49,10 @@ class Transformer_Evd_Model(np_model):
 
         if self._use_deterministic_path:
             deterministic_rep = self._deterministic_encoder(context_x, context_y, target_x)
-            seq_len = target_x.shape[1]
-            representation = deterministic_rep.unsqueeze(1).repeat(1, seq_len, 1)
+            seq_len = target_x.shape[2]
+            batch_size, num_points = deterministic_rep.shape[0], deterministic_rep.shape[1]
+            representation = deterministic_rep.unsqueeze(2).repeat(1, 1, seq_len, 1)
+            # print('representation',representation.shape) # torch.Size([1, 50, 11, 64])
         else:
             raise ValueError("You need the deterministic path for the encoder")
 

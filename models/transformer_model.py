@@ -38,10 +38,34 @@ class TransformerModel(nn.Module):
                 nn.init.zeros_(param)
 
     def forward(self, context_x, context_y, target_x):
+        # print('context_x.shape=', context_x.shape)
+        # print('context_y.shape=', context_y.shape)
+        # print('target_x.shape=', target_x.shape)
+        
+        # ترکیب context_x و context_y در محور ویژگی‌ها
         x = torch.cat([context_x, context_y], dim=-1)
-        x = self.input_projection(x)
-        transformer_out = self.transformer_encoder(x)
+        # print('x.shape=', x.shape)
+        
+        # مسطح کردن محور batch_size و num_points برای سازگاری با nn.Linear
+        batch_size, num_points, seq_len, features = x.shape
+        x = x.view(batch_size * num_points, seq_len, features)  # (1 * 50, 21, 5) = (50, 21, 5)
+        
+        # تبدیل به hidden_size
+        x = self.input_projection(x)  # (50, 21, 64)
+        # print('x.shape after input_projection=', x.shape)
+        
+        # transformer_encoder انتظار (batch_size, seq_len, feature_dim) دارد
+        transformer_out = self.transformer_encoder(x)  # (50, 21, 64)
+        
+        # بازگرداندن به شکل اصلی (batch_size, num_points, seq_len, hidden_size)
+        transformer_out = transformer_out.view(batch_size, num_points, seq_len, self.hidden_size)  # (1, 50, 21, 64)
+        # print('transformer_out=', transformer_out.shape)
+
+        # نرمال‌سازی و میانگین‌گیری روی محور seq_len
         transformer_out = self.layer_norm(transformer_out)
-        out = transformer_out.mean(dim=1)
-        out = self.fc(out)
+        out = transformer_out.mean(dim=2)  # میانگین‌گیری روی محور seq_len (21) → (1, 50, 64)
+        # print('out=', out.shape)
+        
+        # پردازش نهایی
+        out = self.fc(out)  # (1, 50, 64)
         return out
