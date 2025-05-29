@@ -45,25 +45,31 @@ def plot_functions_alea_ep_1d(target_x, target_y, context_x, context_y, pred_y, 
     plt.rcParams.update({'font.size': 16})
     plt.clf()
 
+    # انتخاب اولین ویژگی برای پلات (فرض می‌کنیم feature_dim در محور آخر است)
+    if target_x.ndim == 2:  # اگر دوبعدی است (مثلاً (11, 4))
+        target_x = target_x[:, 0]  # استفاده از اولین ویژگی
+    if context_x.ndim == 2:  # اگر دوبعدی است (مثلاً (21, 4))
+        context_x = context_x[:, 0]  # استفاده از اولین ویژگی
+
     # رسم تابع واقعی
-    plt.plot(target_x[0, :, 0], target_y[0, :, 0], "k:", linewidth=2.6, label="True Function")
+    plt.plot(target_x, target_y, "k:", linewidth=2.6, label="True Function")
 
     # رسم پیش‌بینی
-    plt.plot(target_x[0, :, 0], pred_y[0, :, 0], "b", linewidth=2, label="Prediction")
+    plt.plot(target_x, pred_y, "b", linewidth=2, label="Prediction")
 
     # رسم نقاط زمینه
-    plt.plot(context_x[0, :, 0], context_y[0, :, 0], 'ko', markersize=6, label="Context Points")
+    plt.plot(context_x, context_y, 'ko', markersize=6, label="Context Points")
 
     # خط عمودی در x=0.5
     plt.vlines(x=0.85, ymin=-0.2, ymax=1.2, linestyles='--', colors='gray')
 
     plt.title("ENP-C")
 
-    # رسم عدم قطعیت اپستمیک (فقط برای اولین ویژگی)
+    # رسم عدم قطعیت اپستمیک (فقط برای مقادیر یک‌بعدی)
     plt.fill_between(
-        target_x[0, :, 0],
-        pred_y[0, :, 0] - epis[0, :, 0],
-        pred_y[0, :, 0] + epis[0, :, 0],
+        target_x,
+        pred_y - epis,
+        pred_y + epis,
         alpha=0.7,
         facecolor='#65c999',
         interpolate=True,

@@ -57,7 +57,7 @@ def the_args():
 
     parser.add_argument('-nig_nll_reg_coef', '--nig_nll_reg_coef', type=float, default=2.0,
                         help="EDL nll reg balancing factor")
-    parser.add_argument('-nig_nll_ker_reg_coef', '--nig_nll_ker_reg_coef', type=float, default=0.5,
+    parser.add_argument('-nig_nll_ker_reg_coef', '--nig_nll_ker_reg_coef', type=float, default=0,
                         help='EDL kernel reg balancing factor')
 
     # parser.add_argument('-beta_constraint_add', '--beta_constraint_add', type=float, default=0.1, help="EDL output beta constraint")

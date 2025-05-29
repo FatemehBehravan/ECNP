@@ -189,28 +189,17 @@ def test_model_and_save_results(epoch, tr_time_taken = 0):
 
     # Now Plotting
     if task == "1d_regression":
-        # استخراج داده‌ها با توجه به ابعاد جدید
         (context_x, context_y), target_x = query
         epis = beta / (v * (alpha - 1))
         alea = beta / (alpha - 1)
-
-        # تنظیم ابعاد برای پلات (استخراج اولین نقطه و تغییر ترتیب)
-        context_x_plot = context_x[0, 0, :, :].detach().cpu().numpy().transpose(1, 0)  # (21, 4) -> (4, 21)
-        context_y_plot = context_y[0, 0, :, 0].detach().cpu().numpy()  # (21, 1) -> (21,)
-        target_x_plot = target_x[0, 0, :, :].detach().cpu().numpy().transpose(1, 0)  # (11, 4) -> (4, 11)
-        target_y_plot = target_y[0, 0, :, 0].detach().cpu().numpy()  # (11, 1) -> (11,)
-        mu_plot = mu[0, 0, :, 0].detach().cpu().numpy()  # (11, 1) -> (11,)
-        epis_plot = epis[0, 0, :, 0].detach().cpu().numpy()  # (11, 1) -> (11,)
-        alea_plot = alea[0, 0, :, 0].detach().cpu().numpy()  # (11, 1) -> (11,)
-
         plot_functions_alea_ep_1d(
-            target_x_plot,
-            target_y_plot,
-            context_x_plot,
-            context_y_plot,
-            mu_plot,
-            epis_plot,
-            alea_plot,
+            target_x[0, 0, :, 0].detach().cpu().numpy(),  # انتخاب اولین ویژگی از target_x → (11,)
+            data_test.target_y[0, 0, :, 0].detach().cpu().numpy(),  # (11,)
+            context_x[0, 0, :, 0].detach().cpu().numpy(),  # (21,)
+            context_y[0, 0, :, 0].detach().cpu().numpy(),  # (21,)
+            mu[0, 0, :, 0].detach().cpu().numpy(),  # (11,)
+            epis[0, 0, :, 0].detach().cpu().numpy(),  # (11,)
+            alea[0, 0, :, 0].detach().cpu().numpy(),  # (11,)
             save_img=True,
             save_to_dir=f"{save_to_dir}/saved_images",
             save_name=str(epoch),
