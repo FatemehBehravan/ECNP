@@ -2,12 +2,13 @@ import torch
 import torch.nn as nn
 
 class TransformerModel(nn.Module):
-    def __init__(self, input_size, hidden_size, num_layers, num_heads, dropout):
+    def __init__(self, input_size, output_size, hidden_size, num_layers, num_heads, dropout):
         super(TransformerModel, self).__init__()
         self.hidden_size = hidden_size
         self.num_layers = num_layers
         
         self.input_projection = nn.Linear(input_size, hidden_size)
+        self.output_projection = nn.Linear(output_size, hidden_size)
         
         encoder_layer = nn.TransformerEncoderLayer(
             d_model=hidden_size,
@@ -38,13 +39,13 @@ class TransformerModel(nn.Module):
                 nn.init.zeros_(param)
 
     def forward(self, context_x, context_y, target_x):
-        # print('context_x.shape=', context_x.shape)
-        # print('context_y.shape=', context_y.shape)
-        # print('target_x.shape=', target_x.shape)
+        # print('context_x.shape=', context_x.shape) # torch.Size([1, 50, 10, 4])
+        # print('context_y.shape=', context_y.shape) # torch.Size([1, 50, 10, 1])
+        # print('target_x.shape=', target_x.shape) # torch.Size([1, 58, 10, 4])
         
         # ترکیب context_x و context_y در محور ویژگی‌ها
         x = torch.cat([context_x, context_y], dim=-1)
-        # print('x.shape=', x.shape)
+        # print('x.shape=', x.shape) # torch.Size([1, 50, 10, 5])
         
         # مسطح کردن محور batch_size و num_points برای سازگاری با nn.Linear
         batch_size, num_points, seq_len, features = x.shape
@@ -67,5 +68,18 @@ class TransformerModel(nn.Module):
         # print('out=', out.shape)
         
         # پردازش نهایی
-        out = self.fc(out)  # (1, 50, 64)
-        return out
+        rep = self.fc(out)  # (1, 50, 64)
+        
+        x = target_x
+        batch_size, num_points, seq_len, features = x.shape
+        x = x.view(batch_size * num_points, seq_len, features) # ([95, 10, 4])
+        x = self.output_projection(x)  # torch.Size([95, 10, 64])
+        transformer_out = self.transformer_encoder(x)
+        transformer_out = transformer_out.view(batch_size, num_points, seq_len, self.hidden_size)  # (1, 50, 21, 64)
+        # print('transformer_out=', transformer_out.shape) # torch.Size([1, 94, 10, 64])
+        transformer_out = self.layer_norm(transformer_out)
+        out = transformer_out.mean(dim=2)
+        target_x_rep = self.fc(out) # ([1, 94, 64])
+
+        return rep , target_x_rep
+        

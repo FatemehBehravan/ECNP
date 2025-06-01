@@ -26,6 +26,7 @@ class Transformer_Evd_Model(np_model):
         if self._use_deterministic_path:
             self._deterministic_encoder = TransformerModel(
                 input_size=args.input_size,
+                output_size=args.output_size,
                 hidden_size=args.lstm_hidden_size,
                 num_layers=args.lstm_layers,
                 num_heads=4,
@@ -37,8 +38,8 @@ class Transformer_Evd_Model(np_model):
         if self._use_latent_path:
             raise NotImplementedError
 
-        decoder_input_size = args.lstm_hidden_size + args.x_size # 64 + 4 = 68
-        decoder_output_size = [decoder_input_size, 64, 64] 
+        # decoder_input_size = args.lstm_hidden_size
+        # decoder_output_size = [decoder_input_size, 64, 64] 
         self._evidential_decoder = ANPEvidentialDecoder(decoder_output_size, args=args)
 
     def forward(self, query, target_y=None, epoch=0, it=0):
@@ -48,15 +49,20 @@ class Transformer_Evd_Model(np_model):
             raise NotImplementedError
 
         if self._use_deterministic_path:
-            deterministic_rep = self._deterministic_encoder(context_x, context_y, target_x)
+            # print('context_x.shape=', context_x.shape) # torch.Size([1, 50, 10, 4])
+            # print('context_y.shape=', context_y.shape) # torch.Size([1, 50, 10, 1])
+            # print('target_x.shape=', target_x.shape) # torch.Size([1, 58, 10, 4])
+            deterministic_rep, target_x_rep = self._deterministic_encoder(context_x, context_y, target_x)
             seq_len = target_x.shape[2]
             batch_size, num_points = deterministic_rep.shape[0], deterministic_rep.shape[1]
             representation = deterministic_rep.unsqueeze(2).repeat(1, 1, seq_len, 1)
-            # print('representation',representation.shape) # torch.Size([1, 50, 11, 64])
+            target_x_rep = target_x_rep.unsqueeze(2).repeat(1, 1, seq_len, 1)
+            # print('representation',representation.shape) # torch.Size([1, 50, 10, 64])
+            # print('target_x_rep',target_x_rep.shape) # torch.Size([1, 85, 10, 64])
         else:
             raise ValueError("You need the deterministic path for the encoder")
 
-        mu, v, alpha, beta = self._evidential_decoder(representation, target_x)
+        mu, v, alpha, beta = self._evidential_decoder(representation, target_x_rep)
 
         recons_loss = None
         kl_loss = None

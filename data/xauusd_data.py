@@ -15,7 +15,7 @@ class NumericDataset(object):
     def __init__(self,
                  batch_size,
                  max_num_context,
-                 x_size=4,  # برای ['hour_sin', 'open', 'high', 'low']
+                 x_size=4,  # ['hour_sin', 'open', 'high', 'low']
                  y_size=1,
                  testing=False,
                  device="cpu"):
@@ -35,109 +35,91 @@ class NumericDataset(object):
             df['hour_sin'] = np.sin(2 * np.pi * df['hour'] / 24)
             df['minute'] = df['date'].dt.minute
             df['minute_sin'] = np.sin(2 * np.pi * df['minute'] / 60)
-            df['close'] = df['close'].astype(float)
-            df['open'] = df['open'].astype(float)
-            df['high'] = df['high'].astype(float)
-            df['low'] = df['low'].astype(float)
-            df = df.tail(400)
+            df = df.tail(500)
 
             scaler = MinMaxScaler()
             scaled_data = scaler.fit_transform(df[['hour_sin', 'open', 'high', 'low', 'close']])
             scaled_data = pd.DataFrame(scaled_data, columns=['hour_sin', 'open', 'high', 'low', 'close'])
-            x = scaled_data[['hour_sin', 'open', 'high', 'low']].values
-            y = scaled_data['close'].values
-            return scaled_data, x, y
 
-        # بارگذاری داده‌ها
+            return scaled_data
+
+        def create_xy_matrices(data, pre_length=20, post_length=10):
+            feature_cols = ['hour_sin', 'open', 'high', 'low']
+            target_col = 'close'
+
+            x_list = []
+            y_list = []
+
+            for i in range(pre_length, len(data) - post_length):
+                x_window = data.iloc[i - pre_length:i][feature_cols].to_numpy()  # [pre_length, 4]
+                y_window = data.iloc[i:i + post_length][[target_col]].to_numpy()  # [post_length, 1]
+
+                x_list.append(x_window)
+                y_list.append(y_window)
+
+            return x_list, y_list
+
         file_path = './datasets/XAUUSD.csv'
-        df, x_values, y_values = load_csv_data(file_path)
-        num_points = len(x_values)
+        df_scaled = load_csv_data(file_path)
+        x_list, y_list = create_xy_matrices(df_scaled, pre_length=10, post_length=10)
+
+        num_points = len(x_list)
         num_85_percent = int(num_points * 0.85)
 
-        # تعداد نقاط (مثلاً 3)
+        # تبدیل به tensor
+        x_all = torch.tensor(np.array(x_list), dtype=torch.float32)  # [N, 10, 4]
+        y_all = torch.tensor(np.array(y_list), dtype=torch.float32)  # [N, 10, 1]
+
+
+        # تعیین تعداد context و target points
         num_context = fixed_num_context if fixed_num_context > 0 else torch.randint(low=3, high=self._max_num_context + 1, size=(1,)).item()
 
-        # تنظیم context_length و target_length
-        context_length = 21  # 20 روز گذشته + روز فعلی
-        target_length = forecast_horizon  # روز فعلی + 10 روز آینده
-
         if self._testing:
-            num_target = num_points
+            x_values = x_all
+            y_values = y_all
+            num_target = x_values.shape[0]
             num_total_points = num_target
-            start_indices = list(range(20, num_points - target_length + 1))  # همه نقاط ممکن به ترتیب زمانی
-            num_context = len(start_indices)  # تعداد نقاط زمینه برابر با تعداد نقاط ممکن
         else:
-            num_target = num_context  # برای سادگی، num_target را برابر با num_context قرار می‌دهیم
-            num_total_points = num_target
-            # انتخاب نقاط شروع به ترتیب زمانی
-            start_indices = []
-            for i in range(num_context):
-                # باید حداقل 20 روز قبل و 10 روز بعد داشته باشیم
-                start_idx = torch.randint(20, num_85_percent - target_length, (1,)).item()
-                start_indices.append(start_idx)
-            start_indices.sort()  # ترتیب زمانی
+            num_target = torch.randint(3, self._max_num_context + 1, size=(1,)).item()
+            num_total_points = num_target + num_context
 
-        # تولید context_x, context_y, target_x, target_y برای هر نقطه
-        context_x_list = []
-        context_y_list = []
-        target_x_list = []
-        target_y_list = []
+            indices = np.random.permutation(num_85_percent)[:num_total_points]
+            indices = np.sort(indices)
+            x_values = x_all[indices]
+            y_values = y_all[indices]
 
-        for start_idx in start_indices:
-            # Context_x: 20 روز گذشته + روز فعلی (ماتریس 21×4)
-            context_start = max(0, start_idx - 20)
-            context_end = start_idx + 1
-            context_data = df.iloc[context_start:context_end][['hour_sin', 'open', 'high', 'low']].values
-            if context_data.shape[0] < 21:  # پر کردن برای نقاط اولیه
-                padding_size = 21 - context_data.shape[0]
-                padding = np.mean(context_data, axis=0, keepdims=True).repeat(padding_size, axis=0)
-                context_data = np.vstack((padding, context_data))
-            context_x = torch.tensor(context_data, dtype=torch.float32).view(1, 1, 21, 4)  # (1, 1, 21, 4)
+        # reshape to batch format
+        x_values = x_values.unsqueeze(0).repeat(1, 1, 1, 1)  # [B, T, 10, 4]
+        y_values = y_values.unsqueeze(0).repeat(1, 1, 1, 1)  # [B, T, 10, 1]
 
-            # Context_y: 20 روز گذشته + روز فعلی (ماتریس 21×1)
-            context_y_data = df.iloc[context_start:context_end]['close'].values
-            if len(context_y_data) < 21:
-                padding_size = 21 - len(context_y_data)
-                padding = np.mean(context_y_data).repeat(padding_size)
-                context_y_data = np.concatenate((context_y_data, padding))
-            context_y = torch.tensor(context_y_data, dtype=torch.float32).view(1, 1, 21, 1)  # (1, 1, 21, 1)
+        # print(x_values.shape) #torch.Size([1, 72, 10, 4])
+        # print(y_values.shape) #torch.Size([1, 72, 10, 1])
 
-            # Target_x: روز فعلی + 10 روز آینده (ماتریس 11×4)
-            target_start = start_idx
-            target_end = start_idx + target_length
-            target_data = df.iloc[target_start:target_end][['hour_sin', 'open', 'high', 'low']].values
-            if len(target_data) < target_length:  # پر کردن برای نقاط انتهایی
-                padding_size = target_length - len(target_data)
-                padding = np.mean(target_data, axis=0, keepdims=True).repeat(padding_size, axis=0)
-                target_data = np.vstack((padding, target_data))
-            target_x = torch.tensor(target_data, dtype=torch.float32).view(1, 1, 11, 4)  # (1, 1, 11, 4)
-
-            # Target_y: روز فعلی + 10 روز آینده (ماتریس 11×1)
-            target_y_data = df.iloc[target_start:target_end]['close'].values
-            if len(target_y_data) < target_length:
-                padding_size = target_length - len(target_y_data)
-                padding = np.mean(target_y_data).repeat(padding_size)
-                target_y_data = np.concatenate((target_y_data, padding))
-            target_y = torch.tensor(target_y_data, dtype=torch.float32).view(1, 1, 11, 1)  # (1, 1, 11, 1)
-
-            context_x_list.append(context_x)
-            context_y_list.append(context_y)
-            target_x_list.append(target_x)
-            target_y_list.append(target_y)
-
-        # ترکیب تمام نقاط
-        context_x = torch.cat(context_x_list, dim=1).to(device)  # (1, num_context, 21, 4)
-        context_y = torch.cat(context_y_list, dim=1).to(device)  # (1, num_context, 21, 1)
-        target_x = torch.cat(target_x_list, dim=1).to(device)  # (1, num_target, 11, 4)
-        target_y = torch.cat(target_y_list, dim=1).to(device)  # (1, num_target, 11, 1)
 
         task_property = torch.tensor(1).to(device)
 
-        query = ((context_x, context_y), target_x)
+
+        if self._testing:
+            target_x = x_values
+            target_y = y_values
+
+            idx = torch.randperm(num_total_points)
+            context_x = x_values[:, idx[:num_context], :, :]
+            context_y = y_values[:, idx[:num_context], :, :]
+        else:
+            print('Training:')
+            target_x = x_values[:, :num_total_points, :, :]
+            target_y = y_values[:, :num_total_points, :, :]
+            context_x = x_values[:, :num_context, :, :]
+            context_y = y_values[:, :num_context, :, :]
+
+        query = ((context_x.to(device), context_y.to(device)), target_x.to(device))
+
+
         return NPRegressionDescription(
             query=query,
-            target_y=target_y,
-            num_total_points=target_x.shape[1],  # num_target
-            num_context_points=context_x.shape[1],  # num_context
+            target_y=target_y.to(device),
+            num_total_points=num_total_points,
+            num_context_points=num_context,
             task_defn=task_property
         )

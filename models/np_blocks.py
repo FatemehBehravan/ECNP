@@ -290,17 +290,15 @@ class ANPEvidentialDecoder(nn.Module):
     def forward(self, representation, target_x):
         # ابعاد target_x: (batch_size, num_points, seq_len, feature_dim)
         batch_size, num_points, seq_len, d = target_x.shape
-        input_data = torch.cat((representation, target_x), dim=-1)
+        # print('target_x.shape=', target_x.shape) # torch.Size([1, 80, 10, 64])
+        # print('representation',representation.shape) # torch.Size([1, 50, 10, 64])
+        input_data = torch.cat((representation, target_x), dim=1)
+        print('input_data',input_data.shape) # ([1, 130, 10, 64])
 
-        # ابعاد input_data: (batch_size, num_points, seq_len, representation_dim + d)
-        # print("representation shape:", representation.shape)  # انتظار: (1, 50, 11, 64)
-        # print("target_x shape:", target_x.shape)  # انتظار: (1, 50, 11, 4)
-        # print("input_data shape:", input_data.shape)  # انتظار: (1, 50, 11, 68)
-        # print("linear_layers_list[0] weight shape:", self.linear_layers_list[0].weight.shape)
-
+        
         # حذف مسطح‌سازی در اینجا، زیرا forward_pass_linear_layer_relu خودش این کار را انجام می‌دهد
         x = forward_pass_linear_layer_relu(input_data, self.linear_layers_list)
-
+        print('x',x.shape)
         # بازگرداندن به شکل اصلی برای خروجی‌ها
         x = x.view(batch_size, num_points, seq_len, -1)  # (1, 50, 11, output_sizes[-2])
 

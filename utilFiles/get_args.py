@@ -2,7 +2,8 @@ def the_args():
     import argparse
     parser = argparse.ArgumentParser()
 
-    parser.add_argument('-input_size', '--input_size', type=int, default=5, help="number of features * 2 --> Context_X , Target_X")
+    parser.add_argument('-input_size', '--input_size', type=int, default=5, help="number of features --> Context_X + Context_Y")
+    parser.add_argument('-output_size', '--output_size', type=int, default=4, help="number of features -->Target_X")
     parser.add_argument('-lstm_layers', '--lstm_layers', type=int, default=2, help='number of lstm layer --> for reduce complexity')
     parser.add_argument('-lstm_hidden_size', '--lstm_hidden_size', type=int, default=64, help='for small dayasets')
     parser.add_argument('-lstm_dropout', '--lstm_dropout', type=int, default=0.3, help='forbidden overfit')
