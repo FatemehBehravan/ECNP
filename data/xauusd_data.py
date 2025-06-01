@@ -107,7 +107,6 @@ class NumericDataset(object):
             context_x = x_values[:, idx[:num_context], :, :]
             context_y = y_values[:, idx[:num_context], :, :]
         else:
-            print('Training:')
             target_x = x_values[:, :num_total_points, :, :]
             target_y = y_values[:, :num_total_points, :, :]
             context_x = x_values[:, :num_context, :, :]

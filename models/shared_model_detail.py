@@ -31,9 +31,9 @@ args.channels = channels
 
 
 if args.use_deterministic_path and args.use_latent_path:
-    decoder_sizes = [2 * representation_size + d_x] + [HIDDEN_SIZE] * 2
+    decoder_sizes = [128] + [HIDDEN_SIZE] * 2 + [2 * channels]  # First layer takes concatenated input
 else:
-    decoder_sizes = [representation_size + d_x] + [HIDDEN_SIZE] * 2
+    decoder_sizes = [128] + [HIDDEN_SIZE] * 2 + [2 * channels]  # 128 = 64 (representation) + 64 (target_x)
 
 attention_size = [d_x] + [HIDDEN_SIZE] * 2
 

@@ -356,7 +356,8 @@ class Evd_det_model(np_model):
 
         if self._use_deterministic_path:
             deterministic_rep = self._deterministic_encoder(context_x, context_y, target_x)
-            representation = deterministic_rep
+            seq_len = target_x.shape[2]  # Get sequence length from target_x
+            representation = deterministic_rep.unsqueeze(2).repeat(1, 1, seq_len, 1)
         else:
             raise ValueError("You need The deterministic path for the encoder")
 

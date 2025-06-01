@@ -4,6 +4,7 @@ import torch.nn as nn
 from models.building_blocks import get_the_network_linear_list
 from models.building_blocks import forward_pass_linear_layer_relu
 import torch.nn.functional as F
+from models.shared_model_detail import HIDDEN_SIZE
 
 
 class ContextToLatentDistribution(nn.Module):
@@ -116,17 +117,23 @@ class ANPDecoder(nn.Module):
     def __init__(self, output_sizes, args=None):
         super(ANPDecoder, self).__init__()
         self.linear_layers_list = get_the_network_linear_list(output_sizes)
-        self._channels = args.channels
+        self._channels = args.channels if args is not None else 1
 
     def forward(self, representation, target_x):
-        batch_size, set_size, d = target_x.shape
-        # representation = representation.unsqueeze(1).repeat([1,set_size,1])
-        # print("rep: ", representation.shape)
-        input_data = torch.cat((representation, target_x), dim=-1)
-
+        batch_size, num_points, seq_len, d = target_x.shape
+        # Reshape target_x to match representation dimensions
+        target_x_reshaped = target_x.view(batch_size * num_points * seq_len, -1)
+        
+        # Ensure representation is properly shaped
+        if len(representation.shape) == 3:  # If representation is [batch, set_size, dim]
+            representation = representation.unsqueeze(2).repeat(1, 1, seq_len, 1)
+            representation = representation.view(batch_size * num_points * seq_len, -1)
+        
+        input_data = torch.cat((representation, target_x_reshaped), dim=-1)
+        
         x = forward_pass_linear_layer_relu(input_data, self.linear_layers_list)
 
-        out = x.view(batch_size, set_size, -1)
+        out = x.view(batch_size, num_points, seq_len, -1)
 
         mu, log_sigma = torch.split(out, self._channels, dim=-1)
         sigma = 0.1 + 0.9 * torch.nn.functional.softplus(log_sigma)
@@ -266,7 +273,8 @@ class ANPEvidentialDecoder(nn.Module):
     '''
     def __init__(self, output_sizes, args=None):
         super(ANPEvidentialDecoder, self).__init__()
-        self.linear_layers_list = get_the_network_linear_list(output_sizes[:-1])
+        adjusted_sizes = [128] + [HIDDEN_SIZE] * 2 + [128]  # Keep the output size large enough for transforms
+        self.linear_layers_list = get_the_network_linear_list(adjusted_sizes)
         if args is None:
             print("pass args to ANPEvidentialDecoder in np_blocs.py")
             raise NotImplementedError
@@ -275,50 +283,92 @@ class ANPEvidentialDecoder(nn.Module):
         self._ev_dec_alpha_max = args.ev_dec_alpha_max
         self._ev_dec_v_max = args.ev_dec_v_max
 
-        self.transform_gamma = nn.Sequential(nn.ReLU(), nn.Linear(output_sizes[-2], 64), nn.ReLU(),
-                                             nn.Linear(64, args.channels))
-        self.transform_v = nn.Sequential(nn.ReLU(), nn.Linear(output_sizes[-2], 64), nn.ReLU(),
-                                         nn.Linear(64, args.channels))
-        self.transform_alpha = nn.Sequential(nn.ReLU(), nn.Linear(output_sizes[-2], 64), nn.ReLU(),
-                                             nn.Linear(64, args.channels))
-        self.transform_beta = nn.Sequential(nn.ReLU(), nn.Linear(output_sizes[-2], 64), nn.ReLU(),
-                                            nn.Linear(64, args.channels))
 
-    def evidence(self, x):
-        return F.softplus(x) + 1e-6
+        self.transform_gamma = nn.Sequential(
+            nn.Linear(128, 64),
+            nn.ReLU(),
+            nn.Linear(64, args.channels)
+        )
+        self.transform_v = nn.Sequential(
+            nn.Linear(128, 64),
+            nn.ReLU(),
+            nn.Linear(64, args.channels)
+        )
+        self.transform_alpha = nn.Sequential(
+            nn.Linear(128, 64),
+            nn.ReLU(),
+            nn.Linear(64, args.channels)
+        )
+        self.transform_beta = nn.Sequential(
+            nn.Linear(128, 64),
+            nn.ReLU(),
+            nn.Linear(64, args.channels)
+        )
+
+    
 
     def forward(self, representation, target_x):
-        # ابعاد target_x: (batch_size, num_points, seq_len, feature_dim)
-        batch_size, num_points, seq_len, d = target_x.shape
-        # print('target_x.shape=', target_x.shape) # torch.Size([1, 80, 10, 64])
-        # print('representation',representation.shape) # torch.Size([1, 50, 10, 64])
-        input_data = torch.cat((representation, target_x), dim=1)
-        print('input_data',input_data.shape) # ([1, 130, 10, 64])
-
+        batch_size_rep, num_points_rep, seq_len, feature_dim_rep = representation.shape
+        batch_size_tar, num_points_tar, _, feature_dim_tar = target_x.shape
         
+        # Print shapes for debugging
+        # print("Initial shapes:")
+        # print(f"representation: {representation.shape}")
+        # print(f"target_x: {target_x.shape}")
+
+        representation = representation.transpose(1, 2)  # [B, S, N, D] -> [B, N, S, D]
+        representation = representation.reshape(batch_size_rep * seq_len, num_points_rep, feature_dim_rep)
+        representation = torch.nn.functional.interpolate(
+            representation.transpose(1, 2),  # [B*S, N, D] -> [B*S, D, N]
+            size=num_points_tar,
+            mode='linear',
+            align_corners=True
+        ).transpose(1, 2)  # [B*S, D, N_tar] -> [B*S, N_tar, D]
+        representation = representation.reshape(batch_size_rep, seq_len, num_points_tar, feature_dim_rep)
+        representation = representation.transpose(1, 2)  # [B, S, N_tar, D] -> [B, N_tar, S, D]
+        
+        # Now reshape both tensors
+        representation_flat = representation.reshape(-1, feature_dim_rep)
+        target_x_flat = target_x.reshape(-1, feature_dim_tar)
+        
+        # print("After reshape:")
+        # print(f"representation_flat: {representation_flat.shape}")
+        # print(f"target_x_flat: {target_x_flat.shape}")
+        
+        # Concatenate representation and target_x
+        input_data = torch.cat([representation_flat, target_x_flat], dim=-1)
+        input_data = input_data.reshape(batch_size_tar, num_points_tar, seq_len, -1)
+        
+        # print("Input data shape:", input_data.shape)
+        # print("Linear layers:", self.linear_layers_list)
+
         # حذف مسطح‌سازی در اینجا، زیرا forward_pass_linear_layer_relu خودش این کار را انجام می‌دهد
         x = forward_pass_linear_layer_relu(input_data, self.linear_layers_list)
-        print('x',x.shape)
-        # بازگرداندن به شکل اصلی برای خروجی‌ها
-        x = x.view(batch_size, num_points, seq_len, -1)  # (1, 50, 11, output_sizes[-2])
+        # print("After linear layers shape:", x.shape)
+        
+        # Transform outputs (keeping 4D structure)
+        x_flat = x.reshape(-1, x.shape[-1])
 
-        gamma = self.transform_gamma(x).view(batch_size, num_points, seq_len, -1)
-        logv = self.transform_v(x).view(batch_size, num_points, seq_len, -1)
-        logalpha = self.transform_alpha(x).view(batch_size, num_points, seq_len, -1)
-        logbeta = self.transform_beta(x).view(batch_size, num_points, seq_len, -1)
-
-        v = self.evidence(logv)
-        alpha = self.evidence(logalpha)
-        alpha = alpha + 1
-        beta = self.evidence(logbeta)
-
-        # اعمال محدودیت‌ها
-        alpha_thr = self._ev_dec_alpha_max * torch.ones(alpha.shape).to(alpha.device)
-        alpha = torch.min(alpha, alpha_thr)
-        v_thr = self._ev_dec_v_max * torch.ones(v.shape).to(v.device)
-        v = torch.min(v, v_thr)
-        beta_min = self._ev_dec_beta_min * torch.ones(beta.shape).to(beta.device)
-        beta = beta + beta_min
+        gamma = self.transform_gamma(x_flat)
+        v = self.transform_v(x_flat)
+        alpha = self.transform_alpha(x_flat)
+        beta = self.transform_beta(x_flat)
+        
+        # Apply constraints
+        v = torch.exp(v)
+        v = torch.clamp(v, max=self._ev_dec_v_max)
+        alpha = torch.exp(alpha) + 1
+        alpha = torch.clamp(alpha, max=self._ev_dec_alpha_max)
+        beta = torch.exp(beta)
+        beta = torch.clamp(beta, min=self._ev_dec_beta_min)
+        
+        # Reshape outputs back to target dimensions
+        gamma = gamma.reshape(batch_size_tar, num_points_tar, seq_len, -1)
+        v = v.reshape(batch_size_tar, num_points_tar, seq_len, -1)
+        alpha = alpha.reshape(batch_size_tar, num_points_tar, seq_len, -1)
+        beta = beta.reshape(batch_size_tar, num_points_tar, seq_len, -1)
+        
+        
 
         return gamma, v, alpha, beta
 

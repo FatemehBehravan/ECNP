@@ -13,19 +13,26 @@ def get_the_network_linear_list(output_sizes):
     return linear_layers_list
 
 def forward_pass_linear_layer_relu(x, linear_layers_list):
-    '''
-    x: input to the function: Is of shape batch_size , set_size, dimension of input
-    The input is first changed to shape (batch_size*set_size, -1)
-    Then it is passed through the linear_layers of the network with relu activation function
-    '''
-    # batch size, number of context points, context_point_shape (i.e may be just 3)
-    # ([1, 130, 10, 64])
-    batch_size, num_points, seq_len, feature_dim = x.shape
-    x = x.view(batch_size * num_points * seq_len, feature_dim)
-    print('x',x.shape)
-    print(linear_layers_list)
-    for i, linear in enumerate(linear_layers_list[:-1]):
-        x = torch.relu(linear(x))
-    # print("linear layer list: ", linear_layers_list)
-    x = linear_layers_list[-1](x)
+    # Save original shape and flatten if needed
+    original_shape = x.shape
+    is_4d = len(original_shape) == 4
+    
+    if is_4d:
+        # If 4D tensor, flatten to 2D
+        batch_size, num_points, seq_len, feature_dim = original_shape
+        x = x.reshape(-1, feature_dim)
+    
+    # Process through layers
+    for layer in linear_layers_list:
+        if isinstance(layer, nn.Linear):
+            x = layer(x)
+        elif isinstance(layer, nn.ReLU):
+            x = layer(x)
+        else:
+            raise ValueError(f"Unexpected layer type: {type(layer)}")
+    
+    # Return in original shape if it was 4D
+    if is_4d:
+        x = x.reshape(batch_size, num_points, seq_len, -1)
+    
     return x
