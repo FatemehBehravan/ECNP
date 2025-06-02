@@ -100,21 +100,27 @@ class GPCurvesReader(object):
         else:
             num_context = torch.randint(low=3, high=self._max_num_context + 1, size=(1,))
 
-        # If testing, then more targets, evenly distributed at x values
-        #For plotting
         if self._testing:
-            num_target = 400
-            num_total_points = num_target
-            x_values = torch.linspace(start=-2,end = 2, steps=num_target)
-            x_values = (
-                x_values.unsqueeze(dim=0).repeat([self._batch_size,1]).unsqueeze(-1)
-            )
-
+            num_sets = 400  # Number of different sets
+            points_per_set = 10  # Number of points in each set
+            num_target = num_sets * points_per_set  # Total number of target points
+            num_total_points = num_context + num_target
+            
+            # Generate time indices for context points
+            context_indices = torch.arange(num_context, dtype=torch.float32)
+            
+            # Generate time indices for all 400 sets of 10 points each
+            target_indices = torch.arange(num_context, num_context + num_target, dtype=torch.float32)
+            
+            # Combine all indices
+            x_values = torch.cat([context_indices, target_indices])
+            x_values = x_values.unsqueeze(dim=0).repeat([self._batch_size,1]).unsqueeze(-1)
         else:
-            # num_context = 2
-            num_target = torch.randint(3,self._max_num_context+1, size = (1,))
+            # For training, use random number of target points
+            num_target = torch.randint(3, self._max_num_context+1, size=(1,))
             num_total_points = num_target + num_context
-            x_values = torch.rand([self._batch_size, num_total_points,self._x_size])*4-2
+            x_values = torch.arange(num_total_points, dtype=torch.float32)
+            x_values = x_values.unsqueeze(dim=0).repeat([self._batch_size,1]).unsqueeze(-1)
 
         #For NP and CNP, fixed kernel parameters
         l1 = torch.ones(self._batch_size,self._y_size,self._x_size) * self._l1_scale

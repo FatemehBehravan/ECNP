@@ -192,17 +192,42 @@ def test_model_and_save_results(epoch, tr_time_taken = 0):
         (context_x, context_y), target_x = query
         epis = beta / (v * (alpha - 1))
         alea = beta / (alpha - 1)
+        
+        # Get the context points
+        context_counter = context_x[0, 0, :, 0]
+        
+        # Handle 400 sets of 10-point predictions
+        num_sets = 400
+        points_per_set = 10
+        
+        # For visualization, we'll plot one set at a time
+        # You can modify the set_index to visualize different sets
+        set_index = epoch % num_sets  # This will cycle through different sets as epochs progress
+        
+        # Calculate the start and end indices for the current set
+        start_idx = set_index * points_per_set
+        end_idx = start_idx + points_per_set
+        
+        # Extract the target counter values for the current set
+        target_counter = target_x[0, 0, start_idx:end_idx, 0]
+        
+        # Extract predictions and uncertainties for the current set
+        target_y_plot = data_test.target_y[0, 0, start_idx:end_idx, 0].detach().cpu().numpy()
+        pred_plot = mu[0, 0, start_idx:end_idx, 0].detach().cpu().numpy()
+        epis_plot = epis[0, 0, start_idx:end_idx, 0].detach().cpu().numpy()
+        alea_plot = alea[0, 0, start_idx:end_idx, 0].detach().cpu().numpy()
+        
         plot_functions_alea_ep_1d(
-            target_x[0, 0, :, 0].detach().cpu().numpy(),  # انتخاب اولین ویژگی از target_x → (11,)
-            data_test.target_y[0, 0, :, 0].detach().cpu().numpy(),  # (11,)
-            context_x[0, 0, :, 0].detach().cpu().numpy(),  # (21,)
-            context_y[0, 0, :, 0].detach().cpu().numpy(),  # (21,)
-            mu[0, 0, :, 0].detach().cpu().numpy(),  # (11,)
-            epis[0, 0, :, 0].detach().cpu().numpy(),  # (11,)
-            alea[0, 0, :, 0].detach().cpu().numpy(),  # (11,)
+            target_counter.cpu().numpy(),  # x-axis counter for current set of target points
+            target_y_plot,  # target y values for current set
+            context_counter.cpu().numpy(),  # x-axis counter for context points
+            context_y[0, 0, :, 0].detach().cpu().numpy(),  # context y values
+            pred_plot,  # predictions for current set
+            epis_plot,  # epistemic uncertainty for current set
+            alea_plot,  # aleatoric uncertainty for current set
             save_img=True,
             save_to_dir=f"{save_to_dir}/saved_images",
-            save_name=str(epoch),
+            save_name=f"{epoch}_set_{set_index}",  # Include set index in filename
         )
     elif task == "image_completion":
         image_one_temp = batch_x
@@ -237,11 +262,12 @@ def train_1d_regression(tr_time_end=0, tr_time_start=0):
 
         if args.outlier_training_tasks:
             bs, y_len, dim_3, dim_4 = target_y.shape
-            y_dim = torch.argmax(torch.rand(bs, y_len, dim_4), dim=2).numpy()
+            y_dim_3 = torch.argmax(torch.rand(bs, y_len, dim_3), dim=2).numpy()
+            y_dim_4 = torch.argmax(torch.rand(bs, y_len, dim_4), dim=2).numpy()
 
             for i in range(bs):
                 for j in range(y_len):
-                    target_y[i, j, y_dim[i, j], 0] += args.outlier_val  # noise_val
+                    target_y[i, j, y_dim_3[i, j], y_dim_4[i, j]] += args.outlier_val  # noise_val
 
         train_loss = one_iteration_training(query, target_y)
         train_losses.append(train_loss)
