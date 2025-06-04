@@ -29,34 +29,34 @@ class NumericDataset(object):
 
     def generate_curves(self, device, fixed_num_context=3, forecast_horizon=11):
         def load_csv_data(file_path):
-            df = pd.read_csv(file_path)
-            df['date'] = pd.to_datetime(df['time'], unit='s')
-            df['hour'] = df['date'].dt.hour
-            df['hour_sin'] = np.sin(2 * np.pi * df['hour'] / 24)
-            df['minute'] = df['date'].dt.minute
-            df['minute_sin'] = np.sin(2 * np.pi * df['minute'] / 60)
-            df = df.tail(500)
-
+            # Read only the last 500 rows directly
+            df = pd.read_csv(file_path, nrows=500)
+            
+            # Vectorized operations instead of creating intermediate columns
+            hours = pd.to_datetime(df['time'], unit='s').dt.hour
+            df['hour_sin'] = np.sin(2 * np.pi * hours / 24)
+            
+            # Only scale the columns we need
+            columns_to_scale = ['hour_sin', 'open', 'high', 'low', 'close']
             scaler = MinMaxScaler()
-            scaled_data = scaler.fit_transform(df[['hour_sin', 'open', 'high', 'low', 'close']])
-            scaled_data = pd.DataFrame(scaled_data, columns=['hour_sin', 'open', 'high', 'low', 'close'])
+            df[columns_to_scale] = scaler.fit_transform(df[columns_to_scale])
+            
+            return df[columns_to_scale]
 
-            return scaled_data
-
-        def create_xy_matrices(data, pre_length=20, post_length=10):
+        def create_xy_matrices(data, pre_length=10, post_length=10):
             feature_cols = ['hour_sin', 'open', 'high', 'low']
             target_col = 'close'
-
-            x_list = []
-            y_list = []
-
-            for i in range(pre_length, len(data) - post_length):
-                x_window = data.iloc[i - pre_length:i][feature_cols].to_numpy()  # [pre_length, 4]
-                y_window = data.iloc[i:i + post_length][[target_col]].to_numpy()  # [post_length, 1]
-
-                x_list.append(x_window)
-                y_list.append(y_window)
-
+            
+            # Pre-allocate arrays for better performance
+            num_samples = len(data) - pre_length - post_length
+            x_list = np.zeros((num_samples, pre_length, len(feature_cols)))
+            y_list = np.zeros((num_samples, post_length, 1))
+            
+            # Use numpy operations instead of list appending
+            for i in range(num_samples):
+                x_list[i] = data.iloc[i:i + pre_length][feature_cols].to_numpy()
+                y_list[i] = data.iloc[i + pre_length:i + pre_length + post_length][[target_col]].to_numpy()
+            
             return x_list, y_list
 
         file_path = './datasets/XAUUSD.csv'
@@ -106,7 +106,7 @@ class NumericDataset(object):
             idx = torch.randperm(num_total_points)
             context_x = x_values[:, idx[:num_context], :, :]
             context_y = y_values[:, idx[:num_context], :, :]
-        else:
+        else: 
             target_x = x_values[:, :num_total_points, :, :]
             target_y = y_values[:, :num_total_points, :, :]
             context_x = x_values[:, :num_context, :, :]
