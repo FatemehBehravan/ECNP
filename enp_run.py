@@ -193,41 +193,27 @@ def test_model_and_save_results(epoch, tr_time_taken = 0):
         epis = beta / (v * (alpha - 1))
         alea = beta / (alpha - 1)
         
-        # Get the context points
-        context_counter = context_x[0, 0, :, 0]
+        # Extract the first feature (hour_sin) from each point
+        target_x_plot = target_x[:, :, :, 0]  # Shape becomes [batch, num_points, 1]
+        context_x_plot = context_x[:, :, :, 0]  # Shape becomes [batch, num_points, 1]
         
-        # Handle 400 sets of 10-point predictions
-        num_sets = 400
-        points_per_set = 10
-        
-        # For visualization, we'll plot one set at a time
-        # You can modify the set_index to visualize different sets
-        set_index = epoch % num_sets  # This will cycle through different sets as epochs progress
-        
-        # Calculate the start and end indices for the current set
-        start_idx = set_index * points_per_set
-        end_idx = start_idx + points_per_set
-        
-        # Extract the target counter values for the current set
-        target_counter = target_x[0, 0, start_idx:end_idx, 0]
-        
-        # Extract predictions and uncertainties for the current set
-        target_y_plot = data_test.target_y[0, 0, start_idx:end_idx, 0].detach().cpu().numpy()
-        pred_plot = mu[0, 0, start_idx:end_idx, 0].detach().cpu().numpy()
-        epis_plot = epis[0, 0, start_idx:end_idx, 0].detach().cpu().numpy()
-        alea_plot = alea[0, 0, start_idx:end_idx, 0].detach().cpu().numpy()
+        # Extract the target values and predictions
+        target_y_plot = target_y  # Already has shape [batch, num_points, 1]
+        pred_y_plot = mu         # Already has shape [batch, num_points, 1]
+        epis_plot = epis        # Already has shape [batch, num_points, 1]
+        alea_plot = alea        # Already has shape [batch, num_points, 1]
         
         plot_functions_alea_ep_1d(
-            target_counter.cpu().numpy(),  # x-axis counter for current set of target points
-            target_y_plot,  # target y values for current set
-            context_counter.cpu().numpy(),  # x-axis counter for context points
-            context_y[0, 0, :, 0].detach().cpu().numpy(),  # context y values
-            pred_plot,  # predictions for current set
-            epis_plot,  # epistemic uncertainty for current set
-            alea_plot,  # aleatoric uncertainty for current set
+            target_x_plot.cpu().numpy(),
+            target_y_plot.cpu().numpy(),
+            context_x_plot.cpu().numpy(),
+            context_y.cpu().numpy(),
+            pred_y_plot.cpu().numpy(),
+            epis_plot.cpu().numpy(),
+            alea_plot.cpu().numpy(),
             save_img=True,
             save_to_dir=f"{save_to_dir}/saved_images",
-            save_name=f"{epoch}_set_{set_index}",  # Include set index in filename
+            save_name=str(epoch)
         )
     elif task == "image_completion":
         image_one_temp = batch_x
