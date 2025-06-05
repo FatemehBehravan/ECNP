@@ -67,12 +67,9 @@ def plot_functions_alea_ep_1d(target_x, target_y, context_x, context_y, pred_y, 
         num_target_points = len(target_x)
         distributed_x = np.linspace(0, 1, num_target_points)
         
-        # For context points, map their x values to the same scale
-        context_x_scaled = context_x / np.max(target_x) if np.max(target_x) != 0 else context_x
     else:
         # If already 2D, ensure they're flattened
         distributed_x = np.asarray(target_x).flatten()
-        context_x_scaled = np.asarray(context_x).flatten() / np.max(distributed_x) if np.max(distributed_x) != 0 else np.asarray(context_x).flatten()
         target_y = np.asarray(target_y).flatten()
         context_y = np.asarray(context_y).flatten()
         pred_y = np.asarray(pred_y).flatten()
@@ -81,7 +78,7 @@ def plot_functions_alea_ep_1d(target_x, target_y, context_x, context_y, pred_y, 
     # Plot the data
     plt.plot(distributed_x, target_y, "k:", linewidth=2.6, label="True Function")
     plt.plot(distributed_x, pred_y, "b", linewidth=2, label="Prediction")
-    plt.plot(context_x_scaled, context_y, 'ko', markersize=6, label="Context Points")
+    # plt.plot(context_x_scaled, context_y, 'ko', markersize=6, label="Context Points")
 
     # Plot vertical line at x=0.85
     plt.vlines(x=0.85, ymin=-0.2, ymax=1.2, linestyles='--', colors='gray')
