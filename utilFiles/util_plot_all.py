@@ -87,7 +87,7 @@ def plot_functions_alea_ep_1d(target_x, target_y, context_x, context_y, pred_y, 
 
     # Plot epistemic uncertainty
     plt.fill_between(
-        distributed_target_x,
+        distributed_x,
         pred_y - epis,
         pred_y + epis,
         alpha=0.7,
