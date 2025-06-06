@@ -273,7 +273,7 @@ class ANPEvidentialDecoder(nn.Module):
     '''
     def __init__(self, output_sizes, args=None):
         super(ANPEvidentialDecoder, self).__init__()
-        adjusted_sizes = [128] + [HIDDEN_SIZE] * 2 + [128]  # Keep the output size large enough for transforms
+        adjusted_sizes = [HIDDEN_SIZE] * 2 + [128]  # Keep the output size large enough for transforms
         self.linear_layers_list = get_the_network_linear_list(adjusted_sizes)
         if args is None:
             print("pass args to ANPEvidentialDecoder in np_blocs.py")

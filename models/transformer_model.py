@@ -63,13 +63,12 @@ class TransformerModel(nn.Module):
         # print('transformer_out=', transformer_out.shape)
 
         # نرمال‌سازی و میانگین‌گیری روی محور seq_len
-        transformer_out = self.layer_norm(transformer_out)
-        out = transformer_out.mean(dim=2)  # میانگین‌گیری روی محور seq_len (21) → (1, 50, 64)
-        # print('out=', out.shape)
+        out = self.layer_norm(transformer_out)
         
         # پردازش نهایی
-        rep = self.fc(out)  # (1, 50, 64)
+        rep = self.fc(out)  # (1, 50, 21, 64)
         
+
         x = target_x
         batch_size, num_points, seq_len, features = x.shape
         x = x.view(batch_size * num_points, seq_len, features) # ([95, 10, 4])
@@ -77,9 +76,8 @@ class TransformerModel(nn.Module):
         transformer_out = self.transformer_encoder(x)
         transformer_out = transformer_out.view(batch_size, num_points, seq_len, self.hidden_size)  # (1, 50, 21, 64)
         # print('transformer_out=', transformer_out.shape) # torch.Size([1, 94, 10, 64])
-        transformer_out = self.layer_norm(transformer_out)
-        out = transformer_out.mean(dim=2)
-        target_x_rep = self.fc(out) # ([1, 94, 64])
+        out = self.layer_norm(transformer_out)
+        target_x_rep = self.fc(out) # ([1, 94, 10, 64])
 
         return rep , target_x_rep
         

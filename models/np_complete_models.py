@@ -49,14 +49,7 @@ class Transformer_Evd_Model(np_model):
             raise NotImplementedError
 
         if self._use_deterministic_path:
-            # print('context_x.shape=', context_x.shape) # torch.Size([1, 50, 10, 4])
-            # print('context_y.shape=', context_y.shape) # torch.Size([1, 50, 10, 1])
-            # print('target_x.shape=', target_x.shape) # torch.Size([1, 58, 10, 4])
-            deterministic_rep, target_x_rep = self._deterministic_encoder(context_x, context_y, target_x)
-            seq_len = target_x.shape[2]
-            batch_size, num_points = deterministic_rep.shape[0], deterministic_rep.shape[1]
-            representation = deterministic_rep.unsqueeze(2).repeat(1, 1, seq_len, 1)
-            target_x_rep = target_x_rep.unsqueeze(2).repeat(1, 1, seq_len, 1)
+            representation, target_x_rep = self._deterministic_encoder(context_x, context_y, target_x)
             # print('representation',representation.shape) # torch.Size([1, 50, 10, 64])
             # print('target_x_rep',target_x_rep.shape) # torch.Size([1, 85, 10, 64])
         else:
