@@ -30,7 +30,7 @@ class NumericDataset(object):
     def generate_curves(self, device, fixed_num_context=3, forecast_horizon=11):
         def load_csv_data(file_path):
             # Read only the last 500 rows directly
-            df = pd.read_csv(file_path, nrows=500)
+            df = pd.read_csv(file_path, nrows=501)
             
             # Vectorized operations instead of creating intermediate columns
             hours = pd.to_datetime(df['time'], unit='s').dt.hour
@@ -54,8 +54,8 @@ class NumericDataset(object):
             
             # Use numpy operations instead of list appending
             for i in range(num_samples):
-                x_list[i] = data.iloc[i:i + pre_length][feature_cols].to_numpy()
-                y_list[i] = data.iloc[i + pre_length:i + pre_length + post_length][[target_col]].to_numpy()
+                x_list[i] = data.iloc[i:i + pre_length][feature_cols].to_numpy()#0-10
+                y_list[i] = data.iloc[i + pre_length + 1 :i + pre_length + post_length + 1][[target_col]].to_numpy() #10-20
             
             return x_list, y_list
 
