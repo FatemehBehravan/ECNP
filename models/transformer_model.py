@@ -63,8 +63,8 @@ class TransformerModel(nn.Module):
         # print('transformer_out=', transformer_out.shape)
 
         # نرمال‌سازی و میانگین‌گیری روی محور seq_len
-        out = self.layer_norm(transformer_out)
-        
+        transformer_out = self.layer_norm(transformer_out)
+        out = transformer_out.mean(dim=1, keepdim=True)
         # پردازش نهایی
         rep = self.fc(out)  # (1, 50, 21, 64)
         

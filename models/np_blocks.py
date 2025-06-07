@@ -308,25 +308,16 @@ class ANPEvidentialDecoder(nn.Module):
     
 
     def forward(self, representation, target_x):
+        # print('representation',representation.shape) # torch.Size([1, 1, 10, 64])
+        # print('target_x_rep',target_x.shape) # torch.Size([1, 85, 10, 64])
         batch_size_rep, num_points_rep, seq_len, feature_dim_rep = representation.shape
         batch_size_tar, num_points_tar, _, feature_dim_tar = target_x.shape
-        
-        # Print shapes for debugging
-        # print("Initial shapes:")
-        # print(f"representation: {representation.shape}")
-        # print(f"target_x: {target_x.shape}")
 
-        representation = representation.transpose(1, 2)  # [B, S, N, D] -> [B, N, S, D]
-        representation = representation.reshape(batch_size_rep * seq_len, num_points_rep, feature_dim_rep)
-        representation = torch.nn.functional.interpolate(
-            representation.transpose(1, 2),  # [B*S, N, D] -> [B*S, D, N]
-            size=num_points_tar,
-            mode='linear',
-            align_corners=True
-        ).transpose(1, 2)  # [B*S, D, N_tar] -> [B*S, N_tar, D]
-        representation = representation.reshape(batch_size_rep, seq_len, num_points_tar, feature_dim_rep)
-        representation = representation.transpose(1, 2)  # [B, S, N_tar, D] -> [B, N_tar, S, D]
-        
+        representation = representation.repeat(1, num_points_tar, 1, 1)
+
+        # print('representation',representation.shape) # torch.Size([1, 85, 10, 64])
+        # print('target_x_rep',target_x.shape) # torch.Size([1, 85, 10, 64])
+
         # Now reshape both tensors
         representation_flat = representation.reshape(-1, feature_dim_rep)
         target_x_flat = target_x.reshape(-1, feature_dim_tar)
