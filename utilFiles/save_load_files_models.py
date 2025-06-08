@@ -2,8 +2,24 @@ import csv
 import torch
 import numpy as np
 import os
-
+from torch.serialization import safe_globals
 import json
+import argparse
+from models.np_complete_models import Transformer_Evd_Model
+from models.transformer_model import TransformerModel
+from models.np_blocks import (
+    ANPEvidentialDecoder,
+    ANPEvidentialLatentEncoder,
+    ANPDeterministicEncoder
+)
+from torch.nn import (
+    Linear, ReLU, ModuleList, MultiheadAttention,
+    TransformerEncoder, TransformerEncoderLayer,
+    LayerNorm, Dropout, Sequential
+)
+from torch.nn.modules.linear import NonDynamicallyQuantizableLinear
+import torch.nn.functional as F
+
 
 def save_to_txt_file(filename, value, iteration=0, header="None"):
     file = open(filename, 'a')
@@ -52,7 +68,38 @@ def save_model( path, model):
     torch.save(model, path)
 
 def load_model(path):
-    model=torch.load(path)
+    safe_classes = [
+        # Custom models
+        Transformer_Evd_Model,
+        TransformerModel,
+        # Custom model blocks
+        ANPEvidentialDecoder,
+        ANPEvidentialLatentEncoder,
+        ANPDeterministicEncoder,
+        # Basic PyTorch layers
+        Linear,
+        ReLU,
+        ModuleList,
+        MultiheadAttention,
+        NonDynamicallyQuantizableLinear,
+        Sequential,
+        # Transformer-related modules
+        TransformerEncoder,
+        TransformerEncoderLayer,
+        LayerNorm,
+        Dropout,
+        # Functional modules
+        F.relu,
+        F.dropout,
+        F.linear,
+        F.layer_norm,
+        F.softmax,
+        F.mse_loss,
+        # Python standard library
+        argparse.Namespace
+    ]
+    with safe_globals(safe_classes):
+        model = torch.load(path, weights_only=True)
     return model
 
 
