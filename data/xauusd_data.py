@@ -59,7 +59,7 @@ class NumericDataset(object):
             
             return x_list, y_list
 
-        file_path = './datasets/XAUUSD.csv'
+        file_path = './datasets/Test_XAUUSD.csv' if self._testing else './datasets/XAUUSD.csv'
         df_scaled = load_csv_data(file_path)
         x_list, y_list = create_xy_matrices(df_scaled, pre_length=10, post_length=10)
 
