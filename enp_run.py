@@ -74,7 +74,7 @@ optimizer = optim.Adam(model.parameters(), lr=args.learning_rate, weight_decay=1
 
 # model = load_model("/home/deep/Desktop/IMPLEMENTATION/MAY/ANPHeterogenous/May18/saved_models/model_9000.pth")
 if args.load_model:
-    model = load_model("name_of_model.pth")
+    model = load_model("CNP-model-save-name/saved_models/model_4000.pth")
 
 from utilFiles.helper_functions_shared import create_dirs
 create_dirs(save_to_dir)
