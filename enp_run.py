@@ -340,8 +340,6 @@ def main():
     print("Start")
     
     if args.test_only:
-        if not args.load_model:
-            raise ValueError("Test-only mode requires --load_model to be set to 'true'")
         test_only_evaluation()
     else:
         if task == "1d_regression":

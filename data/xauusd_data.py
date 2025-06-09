@@ -72,13 +72,14 @@ class NumericDataset(object):
 
 
         # تعیین تعداد context و target points
-        num_context = fixed_num_context if fixed_num_context > 0 else torch.randint(low=3, high=self._max_num_context + 1, size=(1,)).item()
+        num_context = torch.randint(low=3, high=self._max_num_context + 1, size=(1,)).item()
 
         if self._testing:
             x_values = x_all
             y_values = y_all
             num_target = x_values.shape[0]
             num_total_points = num_target
+            num_context_points = min(self._max_num_context, num_85_percent)
         else:
             num_target = torch.randint(3, self._max_num_context + 1, size=(1,)).item()
             num_total_points = num_target + num_context
@@ -103,9 +104,10 @@ class NumericDataset(object):
             target_x = x_values
             target_y = y_values
 
-            idx = torch.randperm(num_total_points)
-            context_x = x_values[:, idx[:num_context], :, :]
-            context_y = y_values[:, idx[:num_context], :, :]
+            idx = np.random.permutation(num_85_percent)[:num_context_points]
+            idx = np.sort(idx)
+            context_x = x_values[:, idx[:num_context_points], :, :]
+            context_y = y_values[:, idx[:num_context_points], :, :]
         else: 
             target_x = x_values[:, :num_total_points, :, :]
             target_y = y_values[:, :num_total_points, :, :]

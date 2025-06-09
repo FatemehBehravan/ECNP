@@ -1,1 +1,1 @@
-{"Epoch": [0], "Test Loss": [0.021907810121774673], "Test Log Likelihood": [-0.26407235860824585], "Epistemic": [0.1495378315448761], "Aleatoric": [0.18524229526519775], "Train Time": [0], "Test Time": [558.9890594482422]}
+{"Epoch": [0], "Test Loss": [0.021907810121774673], "Test Log Likelihood": [-0.26410505175590515], "Epistemic": [0.1495537906885147], "Aleatoric": [0.1852618157863617], "Train Time": [0], "Test Time": [580.4848730564117]}
