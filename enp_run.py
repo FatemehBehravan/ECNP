@@ -323,14 +323,33 @@ def train_image_completion(tr_time_end=0, tr_time_start=0):
 
         tr_time_end = time.time()
 
+def test_only_evaluation():
+    print("Running in test-only mode")
+    tr_time_taken = 0
+    test_time_start = time.time()
+    
+    # Run test evaluation
+    average_test_loss = test_model_and_save_results(0, tr_time_taken)
+    
+    test_time_taken = time.time() - test_time_start
+    print(f"Test completed in {test_time_taken:.2f} seconds")
+    print(f"Final test loss: {average_test_loss.item():.4f}")
+    return average_test_loss
+
 def main():
-    print("Start Training")
-    if task == "1d_regression":
-        print("Regression, Dataset: ", args.dataset)
-        train_1d_regression()
-    elif task == "image_completion":
-        print("Image Completion, Dataset: ", args.dataset)
-        train_image_completion()
+    print("Start")
+    
+    if args.test_only:
+        if not args.load_model:
+            raise ValueError("Test-only mode requires --load_model to be set to 'true'")
+        test_only_evaluation()
+    else:
+        if task == "1d_regression":
+            print("Regression, Dataset: ", args.dataset)
+            train_1d_regression()
+        elif task == "image_completion":
+            print("Image Completion, Dataset: ", args.dataset)
+            train_image_completion()
     pass
 
 if __name__ == "__main__":

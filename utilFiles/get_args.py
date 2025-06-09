@@ -56,6 +56,9 @@ def the_args():
     parser.add_argument('-load_mdl', '--load_model', type=str, default="False",
                         help="whether to load a model or scratch train")
 
+    parser.add_argument('-test_only', '--test_only', type=str, default="False",
+                        help="Run in testing-only mode without training")
+
     parser.add_argument('-nig_nll_reg_coef', '--nig_nll_reg_coef', type=float, default=1.0,
                         help="EDL nll reg balancing factor")
     parser.add_argument('-nig_nll_ker_reg_coef', '--nig_nll_ker_reg_coef', type=float, default=0,
@@ -85,7 +88,7 @@ def the_args():
     args.use_latent_path = args.use_latent_path.lower() == 'true'
 
     args.debugging = args.debugging.lower() == 'true'
-
+    args.test_only = args.test_only.lower() == 'true'
     args.load_model = args.load_model.lower() == 'true'
    
 
