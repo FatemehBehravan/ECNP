@@ -95,7 +95,7 @@ if task == "image_completion":
     #Make context set and target set from the image
     from data.task_generator_helpers import get_context_target_2d
 elif task == "1d_regression":
-    from utilFiles.util_plot_all import plot_functions_alea_ep_1d
+    from utilFiles.util_plot_all import plot_functions_alea_ep_1d, plot_functions_alea_ep_1d_with_original
     training_iterations = int(args.training_iterations)
     save_models_every = training_iterations//10
 else:
@@ -193,24 +193,30 @@ def test_model_and_save_results(epoch, tr_time_taken = 0):
         epis = beta / (v * (alpha - 1))
         alea = beta / (alpha - 1)
         
-        # Extract the first feature (hour_sin) from each point
-        target_x_plot = target_x[:, :, :, 0]  # Shape becomes [batch, num_points, 1]
-        context_x_plot = context_x[:, :, :, 0]  # Shape becomes [batch, num_points, 1]
-        
-        # Extract the target values and predictions
-        target_y_plot = target_y  # Already has shape [batch, num_points, 1]
-        pred_y_plot = mu         # Already has shape [batch, num_points, 1]
-        epis_plot = epis        # Already has shape [batch, num_points, 1]
-        alea_plot = alea        # Already has shape [batch, num_points, 1]
-        
+        # Original scaled plot
         plot_functions_alea_ep_1d(
-            target_x_plot.cpu().numpy(),
-            target_y_plot.cpu().numpy(),
-            context_x_plot.cpu().numpy(),
-            context_y.cpu().numpy(),
-            pred_y_plot.cpu().numpy(),
-            epis_plot.cpu().numpy(),
-            alea_plot.cpu().numpy(),
+            target_x[:, :, :, 0].detach().cpu().numpy(),  # Using first feature (hour_sin)
+            target_y.detach().cpu().numpy(),
+            context_x[:, :, :, 0].detach().cpu().numpy(),  # Using first feature (hour_sin)
+            context_y.detach().cpu().numpy(),
+            mu.detach().cpu().numpy(),
+            epis.detach().cpu().numpy(),
+            alea.detach().cpu().numpy(),
+            save_img=True,
+            save_to_dir=f"{save_to_dir}/saved_images",
+            save_name=str(epoch)
+        )
+        
+        # New plot with original scale
+        plot_functions_alea_ep_1d_with_original(
+            target_x.detach(),
+            target_y.detach(),
+            context_x.detach(),
+            context_y.detach(),
+            mu.detach(),
+            epis.detach(),
+            alea.detach(),
+            dataset_test,  # Pass the dataset object for inverse transformation
             save_img=True,
             save_to_dir=f"{save_to_dir}/saved_images",
             save_name=str(epoch)
@@ -340,6 +346,8 @@ def main():
     print("Start")
     
     if args.test_only:
+        if not args.load_model:
+            raise ValueError("Test-only mode requires --load_model to be set to 'true'")
         test_only_evaluation()
     else:
         if task == "1d_regression":
