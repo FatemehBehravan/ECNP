@@ -253,82 +253,46 @@ def plot_functions_alea_ep_1d_with_original(
     save_to_dir="",
     save_name="",
 ):
-    """Plot the prediction and uncertainty with both scaled and original values."""
     import matplotlib.pyplot as plt
     import numpy as np
-
-    # Create a figure with two rows for scaled and original data
-    fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(10, 12))
     
-    # Plot scaled data (top subplot)
-    ax1.plot(target_x[0, :, 0, 0].cpu(), target_y[0, :, 0, 0].cpu(), "k:", label="Target")
-    ax1.plot(context_x[0, :, 0, 0].cpu(), context_y[0, :, 0, 0].cpu(), "ko", label="Context")
-    ax1.plot(target_x[0, :, 0, 0].cpu(), pred_y[0, :, 0, 0].cpu(), "b", label="Prediction")
-
-    # Plot uncertainty bands for scaled data
-    ax1.fill_between(
-        target_x[0, :, 0, 0].cpu(),
-        (pred_y - epistemic)[0, :, 0, 0].cpu(),
-        (pred_y + epistemic)[0, :, 0, 0].cpu(),
-        alpha=0.2,
-        color="b",
-        label="Epistemic",
-    )
-    ax1.fill_between(
-        target_x[0, :, 0, 0].cpu(),
-        (pred_y - aleatoric)[0, :, 0, 0].cpu(),
-        (pred_y + aleatoric)[0, :, 0, 0].cpu(),
-        alpha=0.2,
-        color="r",
-        label="Aleatoric",
-    )
-    ax1.set_title("Scaled Values")
-    ax1.legend()
-    ax1.grid(True)
-
-    # Transform data back to original scale
-    target_x_orig = dataset.inverse_transform(target_x[0, :, 0, 0], 'open')
+    plt.clf()  # Clear the current figure
+    
+    # Create time points for x-axis
+    x_points = np.arange(len(target_x[0, :, 0, 0]))
+    
+    # Transform only the y-values (prices) back to original scale
     target_y_orig = dataset.inverse_transform(target_y[0, :, 0, 0], 'close')
-    context_x_orig = dataset.inverse_transform(context_x[0, :, 0, 0], 'open')
     context_y_orig = dataset.inverse_transform(context_y[0, :, 0, 0], 'close')
     pred_y_orig = dataset.inverse_transform(pred_y[0, :, 0, 0], 'close')
     epistemic_orig = dataset.inverse_transform(epistemic[0, :, 0, 0], 'close')
-    aleatoric_orig = dataset.inverse_transform(aleatoric[0, :, 0, 0], 'close')
-
-    # Plot original scale data (bottom subplot)
-    ax2.plot(target_x_orig, target_y_orig, "k:", label="Target")
-    ax2.plot(context_x_orig, context_y_orig, "ko", label="Context")
-    ax2.plot(target_x_orig, pred_y_orig, "b", label="Prediction")
-
-    # Plot uncertainty bands for original data
-    ax2.fill_between(
-        target_x_orig,
+    
+    # Plot original scale data
+    plt.plot(x_points, target_y_orig, "k:", linewidth=2, label="Target")
+    plt.plot(x_points, pred_y_orig, "b", linewidth=2, label="Prediction")
+    # plt.plot(x_points[::len(x_points)//len(context_y_orig)], context_y_orig, "ko", markersize=8, label="Context")
+    
+    # Plot uncertainty bands
+    plt.fill_between(
+        x_points,
         pred_y_orig - epistemic_orig,
         pred_y_orig + epistemic_orig,
         alpha=0.2,
         color="b",
         label="Epistemic",
     )
-    ax2.fill_between(
-        target_x_orig,
-        pred_y_orig - aleatoric_orig,
-        pred_y_orig + aleatoric_orig,
-        alpha=0.2,
-        color="r",
-        label="Aleatoric",
-    )
-    ax2.set_title("Original Values (XAUUSD Price)")
-    ax2.legend()
-    ax2.grid(True)
-    ax2.set_ylabel("Price")
-    ax2.set_xlabel("Time Step")
 
-    plt.tight_layout()
+    plt.title("Original Values (XAUUSD Price)")
+    plt.legend(fontsize='small')
+    plt.grid(True)
+    plt.ylabel("Price (USD)")
+    plt.xlabel("Time Step")
     
+    if not os.path.exists(save_to_dir):
+        os.makedirs(save_to_dir)
+        
     if save_img:
-        plt.savefig(f"{save_to_dir}/{save_name}_with_original.png")
+        plt.savefig(f"{save_to_dir}/{save_name}_original.png", format='png', dpi=300, bbox_inches='tight')
         plt.close()
     else:
         plt.show()
-
-
