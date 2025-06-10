@@ -8,7 +8,7 @@ from sklearn.preprocessing import MinMaxScaler
 
 NPRegressionDescription = collections.namedtuple(
     "NPRegressionDescription",
-    ("query", "target_y", "num_total_points", "num_context_points", "task_defn")
+    ("query", "target_y", "num_total_points", "num_context_points", "task_defn", "scaler")
 )
 
 class NumericDataset(object):
@@ -26,6 +26,7 @@ class NumericDataset(object):
         self._testing = testing
         self._device = device
         self.start_index = 0
+        self.scaler = None
 
     def generate_curves(self, device, fixed_num_context=3, forecast_horizon=11):
         def load_csv_data(file_path):
@@ -38,8 +39,8 @@ class NumericDataset(object):
             
             # Only scale the columns we need
             columns_to_scale = ['hour_sin', 'open', 'high', 'low', 'close']
-            scaler = MinMaxScaler()
-            df[columns_to_scale] = scaler.fit_transform(df[columns_to_scale])
+            self.scaler = MinMaxScaler()
+            df[columns_to_scale] = self.scaler.fit_transform(df[columns_to_scale])
             
             return df[columns_to_scale]
 
@@ -122,5 +123,41 @@ class NumericDataset(object):
             target_y=target_y.to(device),
             num_total_points=num_total_points,
             num_context_points=num_context,
-            task_defn=task_property
+            task_defn=task_property,
+            scaler=self.scaler
         )
+
+    def inverse_transform(self, data, feature_name):
+        """
+        Transform scaled data back to original scale
+        :param data: tensor or numpy array of shape [..., 1]
+        :param feature_name: one of ['hour_sin', 'open', 'high', 'low', 'close']
+        :return: data in original scale
+        """
+        if self.scaler is None:
+            raise ValueError("Scaler not initialized. Generate curves first.")
+            
+        feature_idx = {'hour_sin': 0, 'open': 1, 'high': 2, 'low': 3, 'close': 4}
+        
+        # Convert tensor to numpy if needed
+        is_tensor = torch.is_tensor(data)
+        if is_tensor:
+            data = data.cpu().numpy()
+            
+        # Reshape to 2D
+        original_shape = data.shape
+        data_2d = data.reshape(-1, 1)
+        
+        # Create dummy array for inverse transform
+        dummy = np.zeros((data_2d.shape[0], 5))  # 5 features
+        dummy[:, feature_idx[feature_name]] = data_2d.ravel()
+        
+        # Inverse transform
+        dummy = self.scaler.inverse_transform(dummy)
+        result = dummy[:, feature_idx[feature_name]].reshape(original_shape)
+        
+        # Convert back to tensor if input was tensor
+        if is_tensor:
+            result = torch.from_numpy(result)
+            
+        return result
