@@ -271,7 +271,7 @@ def plot_functions_alea_ep_1d_with_original(
     
     # Transform only the y-values (prices) back to original scale
     target_y_orig = dataset.inverse_transform(target_y_cpu[0, :, 0, 0], 'close')
-    context_y_orig = dataset.inverse_transform(context_y_cpu[0, :, 0, 0], 'close')
+    # context_y_orig = dataset.inverse_transform(context_y_cpu[0, :, 0, 0], 'close')
     pred_y_orig = dataset.inverse_transform(pred_y_cpu[0, :, 0, 0], 'close')
     
     # Plot original scale data
@@ -280,7 +280,8 @@ def plot_functions_alea_ep_1d_with_original(
     
     # Plot vertical line at x=340
     plt.vlines(x=310, ymin=target_y_orig.min(), ymax=target_y_orig.max(), linestyles='--', colors='gray')
-
+    print('target_y_orig[-10]',target_y_orig[-10])
+    print('pred_y_orig[-10]',pred_y_orig[-10])
     
     plt.title("Original Values (XAUUSD Price)")
     plt.legend(fontsize='small')
