@@ -261,27 +261,27 @@ def plot_functions_alea_ep_1d_with_original(
     # Create time points for x-axis
     x_points = np.arange(len(target_x[0, :, 0, 0]))
     
+    # Move tensors to CPU and convert to numpy for plotting
+    target_x_cpu = target_x.cpu().detach()
+    target_y_cpu = target_y.cpu().detach()
+    context_x_cpu = context_x.cpu().detach()
+    context_y_cpu = context_y.cpu().detach()
+    pred_y_cpu = pred_y.cpu().detach()
+    epistemic_cpu = epistemic.cpu().detach()
+    
     # Transform only the y-values (prices) back to original scale
-    target_y_orig = dataset.inverse_transform(target_y[0, :, 0, 0], 'close')
-    context_y_orig = dataset.inverse_transform(context_y[0, :, 0, 0], 'close')
-    pred_y_orig = dataset.inverse_transform(pred_y[0, :, 0, 0], 'close')
-    epistemic_orig = dataset.inverse_transform(epistemic[0, :, 0, 0], 'close')
+    target_y_orig = dataset.inverse_transform(target_y_cpu[0, :, 0, 0], 'close')
+    context_y_orig = dataset.inverse_transform(context_y_cpu[0, :, 0, 0], 'close')
+    pred_y_orig = dataset.inverse_transform(pred_y_cpu[0, :, 0, 0], 'close')
     
     # Plot original scale data
     plt.plot(x_points, target_y_orig, "k:", linewidth=2, label="Target")
     plt.plot(x_points, pred_y_orig, "b", linewidth=2, label="Prediction")
-    # plt.plot(x_points[::len(x_points)//len(context_y_orig)], context_y_orig, "ko", markersize=8, label="Context")
     
-    # Plot uncertainty bands
-    plt.fill_between(
-        x_points,
-        pred_y_orig - epistemic_orig,
-        pred_y_orig + epistemic_orig,
-        alpha=0.2,
-        color="b",
-        label="Epistemic",
-    )
+    # Plot vertical line at x=340
+    plt.vlines(x=300, ymin=target_y_orig.min(), ymax=target_y_orig.max(), linestyles='--', colors='gray')
 
+    
     plt.title("Original Values (XAUUSD Price)")
     plt.legend(fontsize='small')
     plt.grid(True)
