@@ -270,9 +270,9 @@ def plot_functions_alea_ep_1d_with_original(
     epistemic_cpu = epistemic.cpu().detach()
     
     # Transform only the y-values (prices) back to original scale
-    target_y_orig = dataset.inverse_transform(target_y_cpu[0, :, 1, 0], 'close')
+    target_y_orig = dataset.inverse_transform(target_y_cpu[0, :, 0, 0], 'close')
     context_y_orig = dataset.inverse_transform(context_y_cpu[0, :, 0, 0], 'close')
-    pred_y_orig = dataset.inverse_transform(pred_y_cpu[0, :, 1, 0], 'close')
+    pred_y_orig = dataset.inverse_transform(pred_y_cpu[0, :, 0, 0], 'close')
     
     # Plot original scale data
     plt.plot(x_points, target_y_orig, "k:", linewidth=2, label="Target")
