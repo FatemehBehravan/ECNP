@@ -279,7 +279,7 @@ def plot_functions_alea_ep_1d_with_original(
     plt.plot(x_points, pred_y_orig, "b", linewidth=2, label="Prediction")
     
     # Plot vertical line at x=340
-    plt.vlines(x=300, ymin=target_y_orig.min(), ymax=target_y_orig.max(), linestyles='--', colors='gray')
+    plt.vlines(x=320, ymin=target_y_orig.min(), ymax=target_y_orig.max(), linestyles='--', colors='gray')
 
     
     plt.title("Original Values (XAUUSD Price)")
