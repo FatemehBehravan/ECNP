@@ -204,7 +204,8 @@ def test_model_and_save_results(epoch, tr_time_taken = 0):
             alea.detach().cpu().numpy(),
             save_img=True,
             save_to_dir=f"{save_to_dir}/saved_images",
-            save_name=str(epoch)
+            save_name=str(epoch),
+            datetime_data=data_test.datetime_data
         )
         
         # New plot with original scale
@@ -219,7 +220,8 @@ def test_model_and_save_results(epoch, tr_time_taken = 0):
             dataset_test,  # Pass the dataset object for inverse transformation
             save_img=True,
             save_to_dir=f"{save_to_dir}/saved_images",
-            save_name=str(epoch)
+            save_name=str(epoch),
+            datetime_data=data_test.datetime_data
         )
     elif task == "image_completion":
         image_one_temp = batch_x
