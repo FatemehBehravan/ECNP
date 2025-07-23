@@ -296,6 +296,7 @@ def plot_functions_alea_ep_1d_with_original(
     context_y_cpu = context_y.cpu().detach()
     pred_y_cpu = pred_y.cpu().detach()
     epistemic_cpu = epistemic.cpu().detach()
+    aleatoric_cpu = aleatoric.cpu().detach()
     
     # Transform only the y-values (prices) back to original scale
     target_y_orig = dataset.inverse_transform(target_y_cpu[0, :, 0, 0], 'close')
@@ -310,25 +311,62 @@ def plot_functions_alea_ep_1d_with_original(
         # Convert to pandas datetime if not already
         datetime_x = pd.to_datetime(target_datetime)
         
-        # Make sure we have the right number of points
-        if len(datetime_x) >= num_target_points:
+        # Generate evenly distributed datetime points between start and end
+        if len(datetime_x) >= 2:  # We need at least start and end dates
+            start_date = datetime_x.min()
+            end_date = datetime_x.max()
+            # Create evenly distributed dates between start and end
+            x_points = pd.date_range(start=start_date, end=end_date, periods=num_target_points)
+        elif len(datetime_x) >= num_target_points:
             datetime_x = datetime_x[:num_target_points]
             x_points = datetime_x
         else:
             # Fallback to time step indices if not enough datetime points
             x_points = np.arange(len(target_y_orig))
-            datetime_x = None
     else:
         # Fallback to time step indices
         x_points = np.arange(len(target_y_orig))
-        datetime_x = None
     
     # Plot original scale data
     plt.plot(x_points, target_y_orig, "k:", linewidth=2, label="Target")
     plt.plot(x_points, pred_y_orig, "b", linewidth=2, label="Prediction")
     
+    # Transform uncertainties to original scale using bounds approach
+    pred_plus_epis = dataset.inverse_transform(pred_y_cpu[0, :, 0, 0] + epistemic_cpu[0, :, 0, 0], 'close')
+    pred_minus_epis = dataset.inverse_transform(pred_y_cpu[0, :, 0, 0] - epistemic_cpu[0, :, 0, 0], 'close')
+    epistemic_orig = (pred_plus_epis - pred_minus_epis) / 2
+    
+    pred_plus_alea = dataset.inverse_transform(pred_y_cpu[0, :, 0, 0] + aleatoric_cpu[0, :, 0, 0], 'close')
+    pred_minus_alea = dataset.inverse_transform(pred_y_cpu[0, :, 0, 0] - aleatoric_cpu[0, :, 0, 0], 'close')
+    aleatoric_orig = (pred_plus_alea - pred_minus_alea) / 2
+    
+    # Plot epistemic uncertainty
+    plt.fill_between(
+        x_points,
+        pred_y_orig - epistemic_orig,
+        pred_y_orig + epistemic_orig,
+        alpha=0.7,
+        facecolor='#65c999',
+        interpolate=True,
+        label="Epistemic Unc."
+    )
+    
+    # Plot aleatoric uncertainty
+    plt.fill_between(
+        x_points,
+        pred_y_orig - aleatoric_orig,
+        pred_y_orig + aleatoric_orig,
+        alpha=0.3,
+        facecolor='red',
+        interpolate=True,
+        label="Aleatoric Unc."
+    )
+    
+    # Check if we're using datetime data
+    is_datetime = isinstance(x_points, pd.DatetimeIndex) or (hasattr(x_points, 'dtype') and 'datetime' in str(x_points.dtype))
+    
     # Plot vertical line
-    if datetime_x is not None:
+    if is_datetime:
         # For datetime data, plot vertical line at 85% of the time range
         x_min, x_max = x_points.min(), x_points.max()
         x_line = x_min + 0.85 * (x_max - x_min)
@@ -346,11 +384,26 @@ def plot_functions_alea_ep_1d_with_original(
     plt.ylabel("Price (USD)")
     
     # Set appropriate x-axis label and formatting
-    if datetime_x is not None:
+    if is_datetime:
         plt.xlabel("Date")
-        # Format x-axis for datetime
-        plt.gca().xaxis.set_major_formatter(mdates.DateFormatter('%Y-%m-%d'))
-        plt.gca().xaxis.set_major_locator(mdates.DayLocator(interval=max(1, len(datetime_x)//5)))
+        
+        # Calculate the time span to choose appropriate formatting
+        time_span = (x_points.max() - x_points.min()).total_seconds()
+        time_span_days = time_span / (24 * 3600)  # Convert to days
+        
+        if time_span_days <= 1:  # Less than 1 day - show hours
+            plt.gca().xaxis.set_major_formatter(mdates.DateFormatter('%m-%d %H:%M'))
+            plt.gca().xaxis.set_major_locator(mdates.HourLocator(interval=max(1, int(time_span_days * 24 / 5))))
+        elif time_span_days <= 7:  # Less than 1 week - show days with time
+            plt.gca().xaxis.set_major_formatter(mdates.DateFormatter('%m-%d %H:%M'))
+            plt.gca().xaxis.set_major_locator(mdates.HourLocator(interval=max(12, int(time_span_days * 24 / 5))))
+        elif time_span_days <= 30:  # Less than 1 month - show days
+            plt.gca().xaxis.set_major_formatter(mdates.DateFormatter('%m-%d'))
+            plt.gca().xaxis.set_major_locator(mdates.DayLocator(interval=max(1, int(time_span_days / 5))))
+        else:  # More than 1 month - show dates
+            plt.gca().xaxis.set_major_formatter(mdates.DateFormatter('%Y-%m-%d'))
+            plt.gca().xaxis.set_major_locator(mdates.DayLocator(interval=max(1, int(time_span_days / 5))))
+            
         plt.xticks(rotation=45)
     else:
         plt.xlabel("Time Step")
