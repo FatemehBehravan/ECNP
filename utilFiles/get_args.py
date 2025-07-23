@@ -15,14 +15,14 @@ def the_args():
     
     parser.add_argument('-dataset', '--dataset', type=str, default='xauusd', help="1d-sin, gp, mnist, cifar10, celeba..The dataset name")
     parser.add_argument('-seed', '--seed', type=int, default=0, help='Seed for experiment')
-    parser.add_argument('-tr_it', '--training_iterations', type=int, default=10000, help='Number of training iterations')
+    parser.add_argument('-tr_it', '--training_iterations', type=int, default=5000, help='Number of training iterations')
     parser.add_argument('-num_epochs', '--num_epochs', type=int, default=50, help='Number of training iterations')
 
-    parser.add_argument('-test_1d_every', '--test_1d_every', type=int, default=2000,
+    parser.add_argument('-test_1d_every', '--test_1d_every', type=int, default=1000,
                         help='How often to save  test, logs, and save figures (iteration for 1d)')
     parser.add_argument('-save_results_every', '--save_results_every', type=int, default=1,
                         help='How often to save logs/figures (epoch for 2d, iteration for 1d)')
-    parser.add_argument('-num_test_tasks', '--num_test_tasks', type=int, default=2000,
+    parser.add_argument('-num_test_tasks', '--num_test_tasks', type=int, default=1000,
                         help='Number of test tasks to average on (only 1d)')
 
     parser.add_argument('-max_context_points', '--max_context_points', type=int, default=50,
