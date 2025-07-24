@@ -8,7 +8,7 @@ from sklearn.preprocessing import MinMaxScaler
 
 NPRegressionDescription = collections.namedtuple(
     "NPRegressionDescription",
-    ("query", "target_y", "num_total_points", "num_context_points", "task_defn", "scaler")
+    ("query", "target_y", "num_total_points", "num_context_points", "task_defn", "scaler", "datetime_data")
 )
 
 class NumericDataset(object):
@@ -27,6 +27,7 @@ class NumericDataset(object):
         self._device = device
         self.start_index = 0
         self.scaler = None
+        self.datetime_data = None
 
     def generate_curves(self, device, fixed_num_context=3, forecast_horizon=11):
         def load_csv_data(file_path):
@@ -36,15 +37,17 @@ class NumericDataset(object):
             # Vectorized operations instead of creating intermediate columns
             hours = pd.to_datetime(df['time'], unit='s').dt.hour
             df['hour_sin'] = np.sin(2 * np.pi * hours / 24)
+            df['datetime'] = pd.to_datetime(df['time'], unit='s')
             
             # Only scale the columns we need
             columns_to_scale = ['hour_sin', 'open', 'high', 'low', 'close']
             self.scaler = MinMaxScaler()
             df[columns_to_scale] = self.scaler.fit_transform(df[columns_to_scale])
             
-            return df[columns_to_scale]
+            # Return both scaled data and datetime
+            return df[columns_to_scale], df['datetime']
 
-        def create_xy_matrices(data, pre_length=10, post_length=10):
+        def create_xy_matrices(data, datetime_series, pre_length=10, post_length=10):
             feature_cols = ['hour_sin', 'open', 'high', 'low']
             target_col = 'close'
             
@@ -61,8 +64,8 @@ class NumericDataset(object):
             return x_list, y_list
 
         file_path = './datasets/Test_XAUUSD.csv' if self._testing else './datasets/XAUUSD.csv'
-        df_scaled = load_csv_data(file_path)
-        x_list, y_list = create_xy_matrices(df_scaled, pre_length=10, post_length=10)
+        df_scaled, df_datetime = load_csv_data(file_path)
+        x_list, y_list = create_xy_matrices(df_scaled, df_datetime, pre_length=10, post_length=10)
 
         num_points = len(x_list)
         num_85_percent = int(num_points * 0.85)
@@ -78,6 +81,8 @@ class NumericDataset(object):
         if self._testing:
             x_values = x_all
             y_values = y_all
+            # Get datetime values corresponding to the data points
+            datetime_values = df_datetime.values
             num_target = x_values.shape[0]
             num_total_points = num_target
             num_context_points = min(self._max_num_context, num_85_percent)
@@ -89,6 +94,11 @@ class NumericDataset(object):
             indices = np.sort(indices)
             x_values = x_all[indices]
             y_values = y_all[indices]
+            # Get datetime values for selected indices
+            datetime_values = df_datetime.iloc[indices].values
+
+        # Store datetime data for later use
+        self.datetime_data = datetime_values
 
         # reshape to batch format
         x_values = x_values.unsqueeze(0).repeat(1, 1, 1, 1)  # [B, T, 10, 4]
@@ -104,19 +114,28 @@ class NumericDataset(object):
         if self._testing:
             target_x = x_values
             target_y = y_values
+            target_datetime = datetime_values
 
             idx = np.random.permutation(num_85_percent)[:num_context_points]
             idx = np.sort(idx)
             context_x = x_values[:, idx[:num_context_points], :, :]
             context_y = y_values[:, idx[:num_context_points], :, :]
+            context_datetime = df_datetime.iloc[idx[:num_context_points]].values
         else: 
             target_x = x_values[:, :num_total_points, :, :]
             target_y = y_values[:, :num_total_points, :, :]
+            target_datetime = datetime_values[:num_total_points]
             context_x = x_values[:, :num_context, :, :]
             context_y = y_values[:, :num_context, :, :]
+            context_datetime = datetime_values[:num_context]
 
         query = ((context_x.to(device), context_y.to(device)), target_x.to(device))
 
+        # Prepare datetime data for return
+        datetime_info = {
+            'target_datetime': target_datetime,
+            'context_datetime': context_datetime
+        }
 
         return NPRegressionDescription(
             query=query,
@@ -124,7 +143,8 @@ class NumericDataset(object):
             num_total_points=num_total_points,
             num_context_points=num_context,
             task_defn=task_property,
-            scaler=self.scaler
+            scaler=self.scaler,
+            datetime_data=datetime_info
         )
 
     def inverse_transform(self, data, feature_name):

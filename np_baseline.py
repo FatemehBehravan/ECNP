@@ -182,6 +182,7 @@ def test_model_and_save_results(epoch, tr_time_taken = 0):
             save_img=True,
             save_to_dir=f"{save_to_dir}/saved_images",
             save_name=str(epoch),
+            datetime_data=data_test.datetime_data
         )
     elif task == "image_completion":
         # Save Images

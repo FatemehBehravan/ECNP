@@ -40,8 +40,10 @@ def plot_functions_1d_np(target_x, target_y, context_x, context_y, pred_y, var, 
     else:
         plt.show()
 
-def plot_functions_alea_ep_1d(target_x, target_y, context_x, context_y, pred_y, epis, alea, save_img=True, save_to_dir="eval_images", save_name="a.png"):
+def plot_functions_alea_ep_1d(target_x, target_y, context_x, context_y, pred_y, epis, alea, save_img=True, save_to_dir="eval_images", save_name="a.png", datetime_data=None):
     import matplotlib.pyplot as plt
+    import matplotlib.dates as mdates
+    import pandas as pd
     plt.rcParams.update({'font.size': 16})
     plt.clf()
 
@@ -63,10 +65,28 @@ def plot_functions_alea_ep_1d(target_x, target_y, context_x, context_y, pred_y, 
         pred_y = pred_y[:, 0].flatten()      # Shape becomes [points]
         epis = epis[:, 0].flatten()          # Shape becomes [points]
         
-        # Create evenly spaced x values for target points
-        num_target_points = len(target_x)
-        distributed_x = np.linspace(0, 1, num_target_points)
-        
+        # Use datetime data if provided, otherwise create evenly spaced x values
+        if datetime_data is not None and 'target_datetime' in datetime_data:
+            target_datetime = datetime_data['target_datetime']
+            num_target_points = len(target_y)
+            
+            # Convert to pandas datetime if not already
+            datetime_x = pd.to_datetime(target_datetime)
+            
+            # Make sure we have the right number of points
+            if len(datetime_x) >= num_target_points:
+                datetime_x = datetime_x[:num_target_points]
+                distributed_x = datetime_x
+            else:
+                # Fallback to distributed values if not enough datetime points
+                distributed_x = np.linspace(0, 1, num_target_points)
+                datetime_x = None
+        else:
+            # Fallback to distributed values
+            num_target_points = len(target_y)
+            distributed_x = np.linspace(0, 1, num_target_points)
+            datetime_x = None
+            
     else:
         # If already 2D, ensure they're flattened
         distributed_x = np.asarray(target_x).flatten()
@@ -74,20 +94,32 @@ def plot_functions_alea_ep_1d(target_x, target_y, context_x, context_y, pred_y, 
         context_y = np.asarray(context_y).flatten()
         pred_y = np.asarray(pred_y).flatten()
         epis = np.asarray(epis).flatten()
+        datetime_x = None
+
+    # Use datetime_x if available, otherwise use distributed_x
+    x_axis = datetime_x if datetime_x is not None else distributed_x
 
     # Plot the data
-    plt.plot(distributed_x, target_y, "k:", linewidth=2.6, label="True Function")
-    plt.plot(distributed_x, pred_y, "b", linewidth=2, label="Prediction")
+    plt.plot(x_axis, target_y, "k:", linewidth=2.6, label="True Function")
+    plt.plot(x_axis, pred_y, "b", linewidth=2, label="Prediction")
     # plt.plot(context_x_scaled, context_y, 'ko', markersize=6, label="Context Points")
 
-    # Plot vertical line at x=0.85
-    plt.vlines(x=0.85, ymin=-0.2, ymax=1.2, linestyles='--', colors='gray')
+    # Plot vertical line (adjust position based on data type)
+    if datetime_x is not None:
+        # For datetime data, plot vertical line at 85% of the time range
+        x_min, x_max = x_axis.min(), x_axis.max()
+        x_line = x_min + 0.85 * (x_max - x_min)
+        y_min, y_max = min(target_y.min(), pred_y.min()), max(target_y.max(), pred_y.max())
+        plt.vlines(x=x_line, ymin=y_min-0.1, ymax=y_max+0.1, linestyles='--', colors='gray')
+    else:
+        # For normalized data, use original position
+        plt.vlines(x=0.85, ymin=-0.2, ymax=1.2, linestyles='--', colors='gray')
 
     plt.title("ENP-C")
 
     # Plot epistemic uncertainty
     plt.fill_between(
-        distributed_x,
+        x_axis,
         pred_y - epis,
         pred_y + epis,
         alpha=0.7,
@@ -95,23 +127,6 @@ def plot_functions_alea_ep_1d(target_x, target_y, context_x, context_y, pred_y, 
         interpolate=True,
         label="Epistemic Unc."
     )
-
-
-
-    # plt.plot(target_x[0], target_y[0], "k:", linewidth=2.6, label="True Function")
-    # plt.plot(target_x[0], pred_y[0], "b", linewidth=2, label="Prediction")
-    # plt.plot(context_x[0], context_y[0], 'ko', markersize=6)  # اندازه نشانگرها کاهش یافت
-    # plt.vlines(x=0.5, ymin=-0.2, ymax=1.2, linestyles='--')  # خط عمودی به x=0.5 تغییر کرد
-    # plt.title(r"ENP-C")
-    # plt.fill_between(
-    #     target_x[0, :, 0],
-    #     pred_y[0, :, 0] - epis[0, :, 0],
-    #     pred_y[0, :, 0] + epis[0, :, 0],
-    #     alpha=0.7,
-    #     facecolor='#65c999',
-    #     interpolate=True,
-    #     label="Epistemic Unc."
-    # )
     # plt.fill_between(
     #     target_x[0, :, 0],
     #     pred_y[0, :, 0] - alea[0, :, 0],
@@ -122,11 +137,24 @@ def plot_functions_alea_ep_1d(target_x, target_y, context_x, context_y, pred_y, 
     #     label="Aleatoric"
     # )
 
-    plt.xlabel("X value")
-    plt.ylabel("Y value")
-    plt.xlim(0, 1)  # Normalized range
-    plt.ylim(-0.2, 1.2)  # Add some margin for clarity
+    # Set appropriate labels and limits
+    if datetime_x is not None:
+        plt.xlabel("Date")
+        # Format x-axis for datetime
+        plt.gca().xaxis.set_major_formatter(mdates.DateFormatter('%Y-%m-%d'))
+        plt.gca().xaxis.set_major_locator(mdates.DayLocator(interval=max(1, len(datetime_x)//5)))
+        plt.xticks(rotation=45)
+        # Auto-adjust y-limits based on data
+        y_min = min(target_y.min(), pred_y.min())
+        y_max = max(target_y.max(), pred_y.max())
+        y_margin = 0.1 * (y_max - y_min)
+        plt.ylim(y_min - y_margin, y_max + y_margin)
+    else:
+        plt.xlabel("X value")
+        plt.xlim(0, 1)  # Normalized range
+        plt.ylim(-0.2, 1.2)  # Add some margin for clarity
 
+    plt.ylabel("Y value")
     plt.grid(True)
     plt.legend(fontsize='small')
 
@@ -252,14 +280,14 @@ def plot_functions_alea_ep_1d_with_original(
     save_img=True,
     save_to_dir="",
     save_name="",
+    datetime_data=None,
 ):
     import matplotlib.pyplot as plt
+    import matplotlib.dates as mdates
+    import pandas as pd
     import numpy as np
     
     plt.clf()  # Clear the current figure
-    
-    # Create time points for x-axis
-    x_points = np.arange(len(target_x[0, :, 0, 0]))
     
     # Move tensors to CPU and convert to numpy for plotting
     target_x_cpu = target_x.cpu().detach()
@@ -268,26 +296,117 @@ def plot_functions_alea_ep_1d_with_original(
     context_y_cpu = context_y.cpu().detach()
     pred_y_cpu = pred_y.cpu().detach()
     epistemic_cpu = epistemic.cpu().detach()
+    aleatoric_cpu = aleatoric.cpu().detach()
     
     # Transform only the y-values (prices) back to original scale
     target_y_orig = dataset.inverse_transform(target_y_cpu[0, :, 0, 0], 'close')
     # context_y_orig = dataset.inverse_transform(context_y_cpu[0, :, 0, 0], 'close')
     pred_y_orig = dataset.inverse_transform(pred_y_cpu[0, :, 0, 0], 'close')
     
+    # Determine x-axis values
+    if datetime_data is not None and 'target_datetime' in datetime_data:
+        target_datetime = datetime_data['target_datetime']
+        num_target_points = len(target_y_orig)
+        
+        # Convert to pandas datetime if not already
+        datetime_x = pd.to_datetime(target_datetime)
+        
+        # Generate evenly distributed datetime points between start and end
+        if len(datetime_x) >= 2:  # We need at least start and end dates
+            start_date = datetime_x.min()
+            end_date = datetime_x.max()
+            # Create evenly distributed dates between start and end
+            x_points = pd.date_range(start=start_date, end=end_date, periods=num_target_points)
+        elif len(datetime_x) >= num_target_points:
+            datetime_x = datetime_x[:num_target_points]
+            x_points = datetime_x
+        else:
+            # Fallback to time step indices if not enough datetime points
+            x_points = np.arange(len(target_y_orig))
+    else:
+        # Fallback to time step indices
+        x_points = np.arange(len(target_y_orig))
+    
     # Plot original scale data
     plt.plot(x_points, target_y_orig, "k:", linewidth=2, label="Target")
     plt.plot(x_points, pred_y_orig, "b", linewidth=2, label="Prediction")
     
-    # Plot vertical line at x=340
-    plt.vlines(x=310, ymin=target_y_orig.min(), ymax=target_y_orig.max(), linestyles='--', colors='gray')
-    print('target_y_orig[-10]',target_y_orig[-10])
-    print('pred_y_orig[-10]',pred_y_orig[-10])
+    # Transform uncertainties to original scale using bounds approach
+    pred_plus_epis = dataset.inverse_transform(pred_y_cpu[0, :, 0, 0] + epistemic_cpu[0, :, 0, 0], 'close')
+    pred_minus_epis = dataset.inverse_transform(pred_y_cpu[0, :, 0, 0] - epistemic_cpu[0, :, 0, 0], 'close')
+    epistemic_orig = (pred_plus_epis - pred_minus_epis) / 2
+    
+    pred_plus_alea = dataset.inverse_transform(pred_y_cpu[0, :, 0, 0] + aleatoric_cpu[0, :, 0, 0], 'close')
+    pred_minus_alea = dataset.inverse_transform(pred_y_cpu[0, :, 0, 0] - aleatoric_cpu[0, :, 0, 0], 'close')
+    aleatoric_orig = (pred_plus_alea - pred_minus_alea) / 2
+    
+    # Plot epistemic uncertainty
+    plt.fill_between(
+        x_points,
+        pred_y_orig - epistemic_orig,
+        pred_y_orig + epistemic_orig,
+        alpha=0.7,
+        facecolor='#65c999',
+        interpolate=True,
+        label="Epistemic Unc."
+    )
+    
+    # Plot aleatoric uncertainty
+    plt.fill_between(
+        x_points,
+        pred_y_orig - aleatoric_orig,
+        pred_y_orig + aleatoric_orig,
+        alpha=0.3,
+        facecolor='red',
+        interpolate=True,
+        label="Aleatoric Unc."
+    )
+    
+    # Check if we're using datetime data
+    is_datetime = isinstance(x_points, pd.DatetimeIndex) or (hasattr(x_points, 'dtype') and 'datetime' in str(x_points.dtype))
+    
+    # Plot vertical line
+    if is_datetime:
+        # For datetime data, plot vertical line at 85% of the time range
+        x_min, x_max = x_points.min(), x_points.max()
+        x_line = x_min + 0.85 * (x_max - x_min)
+        plt.vlines(x=x_line, ymin=target_y_orig.min(), ymax=target_y_orig.max(), linestyles='--', colors='gray')
+    else:
+        # For time step data, use original position
+        plt.vlines(x=310, ymin=target_y_orig.min(), ymax=target_y_orig.max(), linestyles='--', colors='gray')
+    
+    print('target_y_orig[-10]', target_y_orig[-10])
+    print('pred_y_orig[-10]', pred_y_orig[-10])
     
     plt.title("Original Values (XAUUSD Price)")
     plt.legend(fontsize='small')
     plt.grid(True)
     plt.ylabel("Price (USD)")
-    plt.xlabel("Time Step")
+    
+    # Set appropriate x-axis label and formatting
+    if is_datetime:
+        plt.xlabel("Date")
+        
+        # Calculate the time span to choose appropriate formatting
+        time_span = (x_points.max() - x_points.min()).total_seconds()
+        time_span_days = time_span / (24 * 3600)  # Convert to days
+        
+        if time_span_days <= 1:  # Less than 1 day - show hours
+            plt.gca().xaxis.set_major_formatter(mdates.DateFormatter('%m-%d %H:%M'))
+            plt.gca().xaxis.set_major_locator(mdates.HourLocator(interval=max(1, int(time_span_days * 24 / 5))))
+        elif time_span_days <= 7:  # Less than 1 week - show days with time
+            plt.gca().xaxis.set_major_formatter(mdates.DateFormatter('%m-%d %H:%M'))
+            plt.gca().xaxis.set_major_locator(mdates.HourLocator(interval=max(12, int(time_span_days * 24 / 5))))
+        elif time_span_days <= 30:  # Less than 1 month - show days
+            plt.gca().xaxis.set_major_formatter(mdates.DateFormatter('%m-%d'))
+            plt.gca().xaxis.set_major_locator(mdates.DayLocator(interval=max(1, int(time_span_days / 5))))
+        else:  # More than 1 month - show dates
+            plt.gca().xaxis.set_major_formatter(mdates.DateFormatter('%Y-%m-%d'))
+            plt.gca().xaxis.set_major_locator(mdates.DayLocator(interval=max(1, int(time_span_days / 5))))
+            
+        plt.xticks(rotation=45)
+    else:
+        plt.xlabel("Time Step")
     
     if not os.path.exists(save_to_dir):
         os.makedirs(save_to_dir)
