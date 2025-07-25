@@ -325,7 +325,7 @@ def main():
     data_manager = TradingDataManager(device="cuda" if torch.cuda.is_available() else "cpu")
     
     # Load data
-    df = data_manager.load_extended_data("datasets/XAUUSD.csv")
+    df = data_manager.load_extended_data("datasets/Strategy_XAUUSD.csv")
     
     # Test data iteration
     print("\nTesting data iteration:")

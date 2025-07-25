@@ -25,7 +25,7 @@ class XAUUSDTradingStrategy:
     """
     
     def __init__(self, 
-                 model_path="CNP-model-save-name/saved_models/best_model.pth",
+                 model_path="CNP-model-save-name/saved_models/model_4000.pth",
                  initial_capital=1000.0,
                  prediction_lookforward=5,
                  significance_threshold=0.002,  # 0.2% price change threshold
@@ -278,7 +278,7 @@ class XAUUSDTradingStrategy:
         trade_record['position_fraction'] = position_fraction
     
     def run_backtest(self, 
-                     data_file="datasets/XAUUSD.csv", 
+                     data_file="datasets/Strategy_XAUUSD.csv", 
                      start_index=100, 
                      max_trades=1000,
                      step_size=5):
@@ -520,7 +520,7 @@ def main():
     
     # Initialize trading strategy with your requested parameters
     strategy = XAUUSDTradingStrategy(
-        model_path="CNP-model-save-name/saved_models/best_model.pth",
+        model_path="CNP-model-save-name/saved_models/model_4000.pth",
         initial_capital=1000.0,
         prediction_lookforward=5,  # As requested: look 5 steps ahead
         significance_threshold=0.002,  # 0.2% threshold for trading signals
@@ -530,10 +530,10 @@ def main():
     
     # Run backtesting
     report = strategy.run_backtest(
-        data_file="datasets/XAUUSD.csv",
+        data_file="datasets/Strategy_XAUUSD.csv",
         start_index=100,
-        max_trades=50,  # Reasonable number for initial testing
-        step_size=3   # Check every 3 time steps for efficiency
+        max_trades=250,  # Increased for comprehensive testing
+        step_size=2   # Check every 2 time steps for more opportunities
     )
     
     # Print detailed results

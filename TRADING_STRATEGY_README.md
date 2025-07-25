@@ -1,11 +1,5 @@
 # XAUUSD Trading Strategy
 
-A complete trading strategy implementation based on your Evidential Neural Process forecasting model for XAUUSD market predictions.
-
-## Overview
-
-This trading strategy system is **completely separate** from your original forecasting code and implements the exact logic you requested:
-
 - **Buy Signal**: When `y_pred[i+5]` is significantly bigger than `target_y_orig[i]`
 - **Sell Signal**: When `y_pred[i+5]` is significantly smaller than `target_y_orig[i]`
 - **P&L Calculation**: Uses `(target_y_orig[i+5] - target_y_orig[i])` for buy positions and vice versa for sell positions
@@ -50,7 +44,7 @@ from trading_strategy_complete import XAUUSDTradingStrategy
 
 # Initialize strategy
 strategy = XAUUSDTradingStrategy(
-    model_path="CNP-model-save-name/saved_models/best_model.pth",
+    model_path="CNP-model-save-name/saved_models/model_4000.pth",
     initial_capital=1000.0,
     prediction_lookforward=5,  # Your requested 5-step lookahead
     significance_threshold=0.002,  # 0.2% price change threshold
@@ -59,9 +53,9 @@ strategy = XAUUSDTradingStrategy(
 
 # Run backtest
 report = strategy.run_backtest(
-    data_file="datasets/XAUUSD.csv",
+    data_file="datasets/Strategy_XAUUSD.csv",
     start_index=100,
-    max_trades=100
+    max_trades=250  # Comprehensive testing with more trades
 )
 
 # Generate results
@@ -164,9 +158,9 @@ from trading_data_manager import TradingDataManager
 
 data_manager = TradingDataManager()
 extended_df = data_manager.create_extended_dataset(
-    output_file="datasets/XAUUSD_extended.csv",
+    output_file="datasets/Strategy_XAUUSD_extended.csv",
     num_samples=5000,  # Create 5000 data points
-    base_data_file="datasets/XAUUSD.csv"
+    base_data_file="datasets/Strategy_XAUUSD.csv"
 )
 ```
 
@@ -202,7 +196,7 @@ trading_results/
 The trading strategy is designed to be **completely independent** from your original forecasting code. It:
 
 - ✅ Uses your existing trained models without modification
-- ✅ Works with your current data format (XAUUSD.csv)
+- ✅ Works with your current data format (Strategy_XAUUSD.csv)
 - ✅ Leverages your model architecture and components
 - ✅ Does not modify any of your original files
 - ✅ Can run alongside your existing training/testing scripts
@@ -235,7 +229,7 @@ The trading strategy is designed to be **completely independent** from your orig
 The strategy includes comprehensive error handling and logging. If you encounter issues:
 
 1. Check that all model files exist
-2. Verify data file format matches XAUUSD.csv structure
+2. Verify data file format matches Strategy_XAUUSD.csv structure
 3. Ensure sufficient GPU memory for model inference
 4. Review the detailed trade log for debugging
 

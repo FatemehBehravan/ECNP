@@ -18,7 +18,7 @@ def run_strategy_demo():
     print("=" * 80)
     
     # Check if model exists
-    model_path = "CNP-model-save-name/saved_models/best_model.pth"
+    model_path = "CNP-model-save-name/saved_models/model_4000.pth"
     if not os.path.exists(model_path):
         print(f"Warning: Model file {model_path} not found.")
         print("The strategy will run with random weights for demonstration.")
@@ -39,10 +39,10 @@ def run_strategy_demo():
     
     print("Running conservative backtest...")
     conservative_report = conservative_strategy.run_backtest(
-        data_file="datasets/XAUUSD.csv",
+        data_file="datasets/Strategy_XAUUSD.csv",
         start_index=100,
-        max_trades=30,
-        step_size=5
+        max_trades=200,  # Increased from 30 to 200
+        step_size=3      # Reduced from 5 to 3 for more frequent checks
     )
     
     print("\nConservative Strategy Results:")
@@ -70,10 +70,10 @@ def run_strategy_demo():
     
     print("Running aggressive backtest...")
     aggressive_report = aggressive_strategy.run_backtest(
-        data_file="datasets/XAUUSD.csv",
+        data_file="datasets/Strategy_XAUUSD.csv",
         start_index=100,
-        max_trades=50,
-        step_size=3
+        max_trades=300,  # Increased from 50 to 300
+        step_size=2      # Reduced from 3 to 2 for more frequent checks
     )
     
     print("\nAggressive Strategy Results:")
@@ -115,9 +115,9 @@ def run_extended_data_demo():
     
     print("Creating extended dataset for longer backtests...")
     extended_df = data_manager.create_extended_dataset(
-        output_file="datasets/XAUUSD_extended.csv",
+        output_file="datasets/Strategy_XAUUSD_extended.csv",
         num_samples=2000,  # Create 2000 samples for longer testing
-        base_data_file="datasets/XAUUSD.csv"
+        base_data_file="datasets/Strategy_XAUUSD.csv"
     )
     
     # Run strategy on extended data
@@ -130,10 +130,10 @@ def run_extended_data_demo():
     )
     
     extended_report = extended_strategy.run_backtest(
-        data_file="datasets/XAUUSD_extended.csv",
+        data_file="datasets/Strategy_XAUUSD_extended.csv",
         start_index=200,
-        max_trades=100,
-        step_size=4
+        max_trades=500,  # Increased from 100 to 500
+        step_size=2      # Reduced from 4 to 2 for more frequent checks
     )
     
     print(f"\nExtended Data Results:")
