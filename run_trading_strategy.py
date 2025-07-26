@@ -41,8 +41,8 @@ def run_strategy_demo():
     conservative_report = conservative_strategy.run_backtest(
         data_file="datasets/Strategy_XAUUSD.csv",
         start_index=100,
-        max_trades=200,  # Increased from 30 to 200
-        step_size=3      # Reduced from 5 to 3 for more frequent checks
+        max_trades=500,  # Updated to 500 for comparison
+        step_size=2      # Updated to 2 for comparison
     )
     
     print("\nConservative Strategy Results:")
@@ -72,8 +72,8 @@ def run_strategy_demo():
     aggressive_report = aggressive_strategy.run_backtest(
         data_file="datasets/Strategy_XAUUSD.csv",
         start_index=100,
-        max_trades=300,  # Increased from 50 to 300
-        step_size=2      # Reduced from 3 to 2 for more frequent checks
+        max_trades=500,  # Updated to 500 for comparison
+        step_size=2      # Updated to 2 for comparison
     )
     
     print("\nAggressive Strategy Results:")
@@ -132,8 +132,8 @@ def run_extended_data_demo():
     extended_report = extended_strategy.run_backtest(
         data_file="datasets/Strategy_XAUUSD_extended.csv",
         start_index=200,
-        max_trades=500,  # Increased from 100 to 500
-        step_size=2      # Reduced from 4 to 2 for more frequent checks
+        max_trades=500,  # Updated to 500 for comparison
+        step_size=2      # Updated to 2 for comparison
     )
     
     print(f"\nExtended Data Results:")
