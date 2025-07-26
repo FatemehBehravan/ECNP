@@ -20,15 +20,15 @@ def run_extensive_trading():
             "name": "Ultra Conservative",
             "threshold": 0.008,  # 0.8% threshold
             "position_size": 0.4,  # 40% max position
-            "max_trades": 150,
-            "step_size": 4
+            "max_trades": 500,
+            "step_size": 2
         },
         {
             "name": "Conservative", 
             "threshold": 0.005,  # 0.5% threshold
             "position_size": 0.5,  # 50% max position
-            "max_trades": 300,
-            "step_size": 3
+            "max_trades": 500,
+            "step_size": 2
         },
         {
             "name": "Moderate",
@@ -41,15 +41,15 @@ def run_extensive_trading():
             "name": "Aggressive",
             "threshold": 0.001,  # 0.1% threshold
             "position_size": 0.7,  # 70% max position
-            "max_trades": 750,
+            "max_trades": 500,
             "step_size": 2
         },
         {
             "name": "Ultra Aggressive",
             "threshold": 0.0005,  # 0.05% threshold
             "position_size": 0.8,  # 80% max position
-            "max_trades": 1000,
-            "step_size": 1
+            "max_trades": 500,
+            "step_size": 2
         }
     ]
     

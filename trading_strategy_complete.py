@@ -209,49 +209,60 @@ class XAUUSDTradingStrategy:
             'signal_strength': strength
         }
         
+        position_opened = False
+        
         # Close existing position if we have one and signal is opposite or neutral
         if self.position != 0 and (signal != self.position or signal == 0):
             self._close_position(current_price, current_index, trade_record)
         
-        # Open new position if signal is strong enough
-        if signal != 0 and self.position == 0:
+        # Open new position only if no position exists and signal is strong (FIXED: Prevent overwriting)
+        if self.position == 0 and signal != 0:
             self._open_position(signal, current_price, current_index, trade_record, strength)
+            position_opened = True
         
         # Record trade
         trade_record.update({
             'capital_after': self.current_capital,
             'position_after': self.position,
-            'position_size_after': self.position_size
+            'position_size_after': self.position_size,
+            'actual_position_size': self.position_size,  # Add the actual position size
+            'new_position_opened': position_opened
         })
         
         self.trade_history.append(trade_record)
         self.capital_history.append(self.current_capital)
         self.position_history.append(self.position)
+        
+        return position_opened  # Return whether a new position was opened
     
     def _close_position(self, current_price, current_index, trade_record):
-        """Close the current position and calculate P&L"""
+        """Close the current position and calculate P&L in dollars"""
         if self.position == 0:
             return
         
-        # Calculate P&L using the formula: (target_y_orig[i+5] - target_y_orig[i])
-        # where i is the entry point and i+5 is current closing point
+        # Calculate P&L in dollars: (target_y_orig[i+5] - target_y_orig[i]) * shares
         entry_price = self.entry_price
         price_diff = current_price - entry_price
         
+        # Calculate number of shares (or units) we could buy with position_size
+        shares = self.position_size / entry_price
+        
         if self.position == 1:  # Long position (buy)
-            # P&L = (current_price - entry_price) * position_size_ratio
-            pnl = price_diff / entry_price * self.position_size
+            # P&L = price_difference * shares = (current_price - entry_price) * shares
+            pnl = price_diff * shares
             trade_record['action'] = 'CLOSE_LONG'
         else:  # Short position (sell)
-            # P&L = (entry_price - current_price) * position_size_ratio  
-            pnl = -price_diff / entry_price * self.position_size
+            # P&L = negative_price_difference * shares = (entry_price - current_price) * shares
+            pnl = -price_diff * shares
             trade_record['action'] = 'CLOSE_SHORT'
         
         # Update capital
         self.current_capital += pnl
         trade_record['pnl'] = pnl
-        trade_record['return_pct'] = pnl / self.position_size * 100
+        trade_record['return_pct'] = (pnl / self.position_size) * 100
         trade_record['holding_period'] = current_index - self.entry_index
+        trade_record['shares'] = shares
+        trade_record['price_diff'] = price_diff
         
         # Reset position
         self.position = 0
@@ -261,9 +272,8 @@ class XAUUSDTradingStrategy:
     
     def _open_position(self, signal, current_price, current_index, trade_record, strength):
         """Open a new position"""
-        # Calculate position size based on signal strength and available capital
-        # More confident predictions get larger position sizes
-        position_fraction = min(self.max_position_size, 0.2 + strength * 2)  # 20% to max_position_size
+        # Use the configured max position size directly (fixed position sizing)
+        position_fraction = self.max_position_size
         self.position_size = self.current_capital * position_fraction
         
         self.position = signal
@@ -334,21 +344,23 @@ class XAUUSDTradingStrategy:
                     predictions, current_price, current_index
                 )
                 
-                # Execute trade if signal exists or we need to close existing position
+                # Execute trade if signal exists or we need to manage existing position
                 should_trade = (signal != 0) or (self.position != 0)
                 
                 if should_trade:
-                    self.execute_trade(signal, current_price, current_index, 
-                                     predicted_price, strength)
+                    position_opened = self.execute_trade(signal, current_price, current_index, 
+                                                       predicted_price, strength)
                     
-                    if signal != 0:  # New position opened
+                    # Count only actual new positions opened (FIXED: Accurate trade counting)
+                    if position_opened:
                         trades_executed += 1
                         action = "BUY" if signal == 1 else "SELL"
                         print(f"Trade {trades_executed:3d}: {action:4s} at ${current_price:7.2f} "
                               f"(Pred: ${predicted_price:7.2f}, Capital: ${self.current_capital:8.2f})")
                         
-                        # Track prediction accuracy
-                        if abs(predicted_price - current_price) > current_price * 0.001:  # >0.1% change
+                        # Track prediction accuracy (FIXED: Check direction correctness)
+                        expected_direction = 1 if predicted_price > current_price else -1
+                        if expected_direction == signal:  # Prediction direction matches signal
                             successful_predictions += 1
                 
             except Exception as e:
