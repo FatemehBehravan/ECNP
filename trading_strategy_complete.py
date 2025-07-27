@@ -49,11 +49,14 @@ class XAUUSDTradingStrategy:
         self.significance_threshold = significance_threshold
         self.max_position_size = max_position_size
         
-        # Trading state
-        self.position = 0  # 0: no position, 1: long (buy), -1: short (sell)
-        self.position_size = 0  # Amount invested in current position
-        self.entry_price = 0   # Price at which position was opened
-        self.entry_index = 0   # Index at which position was opened
+        # Trading state - UPDATED: Support multiple concurrent positions
+        self.positions = []  # List of position dictionaries
+        # Each position: {'type': 1/-1, 'size': float, 'entry_price': float, 'entry_index': int, 'id': str}
+        self.next_position_id = 1  # Auto-incrementing position ID
+        
+        # Legacy compatibility (for existing code that checks self.position)
+        self.position = 0  # 0: no positions, 1: has long, -1: has short, 2: has both
+        self.position_size = 0  # Total invested amount across all positions
         
         # Performance tracking
         self.trade_history = []
@@ -184,12 +187,73 @@ class XAUUSDTradingStrategy:
         
         return 0, 0.0, predicted_price
     
+    def _update_legacy_position_status(self):
+        """Update legacy position variables for compatibility"""
+        if not self.positions:
+            self.position = 0
+            self.position_size = 0
+        else:
+            # Calculate total position size
+            self.position_size = sum(pos['size'] for pos in self.positions)
+            
+            # Determine position status
+            has_long = any(pos['type'] == 1 for pos in self.positions)
+            has_short = any(pos['type'] == -1 for pos in self.positions)
+            
+            if has_long and has_short:
+                self.position = 2  # Both long and short
+            elif has_long:
+                self.position = 1  # Long only
+            elif has_short:
+                self.position = -1  # Short only
+            else:
+                self.position = 0  # No positions
+    
+    def _get_total_exposure(self):
+        """Calculate total capital exposure across all positions"""
+        return sum(pos['size'] for pos in self.positions)
+    
+    def _can_open_new_position(self, position_size):
+        """Check if we can open a new position given capital constraints"""
+        total_exposure = self._get_total_exposure()
+        return (total_exposure + position_size) <= (self.current_capital * 0.95)  # Keep 5% buffer
+    
+    def _should_close_positions(self, signal):
+        """
+        Determine which positions should be closed based on new signal
+        
+        Rules:
+        - LONG → SHORT: Close ALL LONG positions
+        - SHORT → LONG: Close ALL SHORT positions  
+        - LONG → LONG: Keep all LONG positions (open another)
+        - SHORT → SHORT: Keep all SHORT positions (open another)
+        - Any → None: Keep all positions (hold)
+        """
+        positions_to_close = []
+        
+        if signal != 0:  # Only close positions when we have a signal
+            # Check if we're switching directions
+            has_long = any(pos['type'] == 1 for pos in self.positions)
+            has_short = any(pos['type'] == -1 for pos in self.positions)
+            
+            if signal == 1 and has_short:  # Switching to LONG, close all SHORTs
+                for i, pos in enumerate(self.positions):
+                    if pos['type'] == -1:  # SHORT position
+                        positions_to_close.append(i)
+            elif signal == -1 and has_long:  # Switching to SHORT, close all LONGs
+                for i, pos in enumerate(self.positions):
+                    if pos['type'] == 1:  # LONG position
+                        positions_to_close.append(i)
+            # If signal matches existing positions (same direction), don't close anything
+        
+        return positions_to_close
+    
     def execute_trade(self, signal, current_price, current_index, predicted_price, strength=1.0):
         """
-        Execute a trading decision based on the strategy
+        Execute a trading decision with support for multiple concurrent positions
         
         Args:
-            signal: 1 for buy, -1 for sell, 0 for close position
+            signal: 1 for buy, -1 for sell, 0 for hold (no action)
             current_price: Current market price
             current_index: Current position in dataset
             predicted_price: Predicted future price
@@ -204,88 +268,151 @@ class XAUUSDTradingStrategy:
             'price': current_price,
             'predicted_price': predicted_price,
             'capital_before': self.current_capital,
-            'position_before': self.position,
-            'position_size_before': self.position_size,
+            'positions_before': len(self.positions),
+            'total_exposure_before': self._get_total_exposure(),
             'signal_strength': strength
         }
         
+        positions_closed = 0
         position_opened = False
         
-        # Close existing position if we have one and signal is opposite or neutral
-        if self.position != 0 and (signal != self.position or signal == 0):
-            self._close_position(current_price, current_index, trade_record)
+        # Determine current position status for action description
+        has_long_before = any(pos['type'] == 1 for pos in self.positions)
+        has_short_before = any(pos['type'] == -1 for pos in self.positions)
         
-        # Open new position only if no position exists and signal is strong (FIXED: Prevent overwriting)
-        if self.position == 0 and signal != 0:
-            self._open_position(signal, current_price, current_index, trade_record, strength)
-            position_opened = True
+        # 1. Close positions based on rules (if any)
+        positions_to_close = self._should_close_positions(signal)
+        if positions_to_close:
+            close_type = "LONG" if self.positions[positions_to_close[0]]['type'] == 1 else "SHORT"
+            print(f"  🔄 Direction change detected: Closing all {close_type} positions ({len(positions_to_close)} positions)")
+            
+        for pos_index in reversed(positions_to_close):  # Reverse to maintain indices
+            self._close_position_by_index(pos_index, current_price, current_index, trade_record)
+            positions_closed += 1
         
-        # Record trade
+        # 2. Open new position if signal exists and we have capital
+        if signal != 0:
+            position_size = self.current_capital * self.max_position_size
+            if self._can_open_new_position(position_size):
+                # Determine action type for clearer logging
+                signal_type = "LONG" if signal == 1 else "SHORT"
+                has_same_direction = (signal == 1 and has_long_before) or (signal == -1 and has_short_before)
+                
+                if positions_closed > 0:
+                    action_desc = f"SWITCH_TO_{signal_type}"
+                elif has_same_direction:
+                    action_desc = f"ADD_{signal_type}"
+                else:
+                    action_desc = f"OPEN_{signal_type}"
+                
+                self._open_new_position(signal, current_price, current_index, position_size, trade_record, strength)
+                trade_record['action_type'] = action_desc
+                position_opened = True
+            else:
+                # Log that we wanted to trade but couldn't due to capital constraints
+                signal_type = "LONG" if signal == 1 else "SHORT"
+                trade_record['action'] = f'BLOCKED_{signal_type}_CAPITAL'
+        
+        # 3. Update legacy position status
+        self._update_legacy_position_status()
+        
+        # Record trade details
         trade_record.update({
             'capital_after': self.current_capital,
-            'position_after': self.position,
-            'position_size_after': self.position_size,
-            'actual_position_size': self.position_size,  # Add the actual position size
-            'new_position_opened': position_opened
+            'positions_after': len(self.positions),
+            'total_exposure_after': self._get_total_exposure(),
+            'positions_closed': positions_closed,
+            'new_position_opened': position_opened,
+            'active_positions': [{'type': p['type'], 'size': p['size'], 'id': p['id']} for p in self.positions]
         })
         
-        self.trade_history.append(trade_record)
+        # Only record if something actually happened
+        if position_opened or positions_closed > 0 or signal != 0:
+            self.trade_history.append(trade_record)
+        
         self.capital_history.append(self.current_capital)
         self.position_history.append(self.position)
         
         return position_opened  # Return whether a new position was opened
     
-    def _close_position(self, current_price, current_index, trade_record):
-        """Close the current position and calculate P&L in dollars"""
-        if self.position == 0:
+    def _close_position_by_index(self, pos_index, current_price, current_index, trade_record):
+        """Close a specific position by its index and calculate P&L"""
+        if pos_index >= len(self.positions):
             return
         
-        # Calculate P&L in dollars: (target_y_orig[i+5] - target_y_orig[i]) * shares
-        entry_price = self.entry_price
+        position = self.positions[pos_index]
+        
+        # Calculate P&L in dollars
+        entry_price = position['entry_price']
+        position_size = position['size']
         price_diff = current_price - entry_price
         
         # Calculate number of shares (or units) we could buy with position_size
-        shares = self.position_size / entry_price
+        shares = position_size / entry_price
         
-        if self.position == 1:  # Long position (buy)
+        if position['type'] == 1:  # Long position (buy)
             # P&L = price_difference * shares = (current_price - entry_price) * shares
             pnl = price_diff * shares
-            trade_record['action'] = 'CLOSE_LONG'
+            action = f'CLOSE_LONG_{position["id"]}'
         else:  # Short position (sell)
             # P&L = negative_price_difference * shares = (entry_price - current_price) * shares
             pnl = -price_diff * shares
-            trade_record['action'] = 'CLOSE_SHORT'
+            action = f'CLOSE_SHORT_{position["id"]}'
         
         # Update capital
         self.current_capital += pnl
-        trade_record['pnl'] = pnl
-        trade_record['return_pct'] = (pnl / self.position_size) * 100
-        trade_record['holding_period'] = current_index - self.entry_index
-        trade_record['shares'] = shares
-        trade_record['price_diff'] = price_diff
         
-        # Reset position
-        self.position = 0
-        self.position_size = 0
-        self.entry_price = 0
-        self.entry_index = 0
+        # Create detailed trade record for this specific closure
+        close_record = trade_record.copy()
+        close_record.update({
+            'action': action,
+            'pnl': pnl,
+            'return_pct': (pnl / position_size) * 100,
+            'holding_period': current_index - position['entry_index'],
+            'shares': shares,
+            'price_diff': price_diff,
+            'position_id': position['id'],
+            'entry_price': entry_price,
+            'position_size': position_size
+        })
+        
+        # Add to trade history immediately for completed trades
+        self.trade_history.append(close_record)
+        
+        # Remove position from active positions
+        del self.positions[pos_index]
     
-    def _open_position(self, signal, current_price, current_index, trade_record, strength):
-        """Open a new position"""
-        # Use the configured max position size directly (fixed position sizing)
-        position_fraction = self.max_position_size
-        self.position_size = self.current_capital * position_fraction
+    def _open_new_position(self, signal, current_price, current_index, position_size, trade_record, strength):
+        """Open a new position and add it to the positions list"""
+        position_id = f"P{self.next_position_id}"
+        self.next_position_id += 1
         
-        self.position = signal
-        self.entry_price = current_price
-        self.entry_index = current_index
+        # Create new position record
+        new_position = {
+            'type': signal,
+            'size': position_size,
+            'entry_price': current_price,
+            'entry_index': current_index,
+            'id': position_id,
+            'strength': strength,
+            'timestamp': self.data_manager.get_datetime_at_index(current_index)
+        }
         
+        # Add to positions list
+        self.positions.append(new_position)
+        
+        # Update trade record
         if signal == 1:
-            trade_record['action'] = 'OPEN_LONG'
+            trade_record['action'] = f'OPEN_LONG_{position_id}'
         else:
-            trade_record['action'] = 'OPEN_SHORT'
+            trade_record['action'] = f'OPEN_SHORT_{position_id}'
         
-        trade_record['position_fraction'] = position_fraction
+        trade_record.update({
+            'position_id': position_id,
+            'position_size': position_size,
+            'position_fraction': position_size / self.current_capital,
+            'entry_price': current_price
+        })
     
     def run_backtest(self, 
                      data_file="datasets/Strategy_XAUUSD.csv", 
@@ -367,12 +494,28 @@ class XAUUSDTradingStrategy:
                 print(f"Error at index {current_index}: {str(e)}")
                 continue
         
-        # Close any remaining position
-        if self.position != 0:
+        # Close any remaining positions
+        if len(self.positions) > 0:
             final_price = self.data_manager.get_price_at_index(len(df) - 1)
             final_index = len(df) - 1
-            self.execute_trade(0, final_price, final_index, final_price)
-            print(f"Final position closed at ${final_price:.2f}")
+            
+            print(f"Closing {len(self.positions)} remaining positions at ${final_price:.2f}")
+            
+            # Close each position individually
+            positions_to_close = list(range(len(self.positions)))
+            for pos_index in reversed(positions_to_close):  # Reverse to maintain indices
+                trade_record = {
+                    'timestamp': self.data_manager.get_datetime_at_index(final_index),
+                    'index': final_index,
+                    'price': final_price,
+                    'predicted_price': final_price,
+                    'capital_before': self.current_capital,
+                    'signal_strength': 0
+                }
+                self._close_position_by_index(pos_index, final_price, final_index, trade_record)
+            
+            # Update legacy status
+            self._update_legacy_position_status()
         
         # Print summary
         print("\n" + "=" * 60)
