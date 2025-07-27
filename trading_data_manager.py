@@ -264,6 +264,12 @@ class TradingDataManager:
             current_idx += step_size
             iteration_count += 1
     
+    def get_price_at_index(self, index):
+        """Get the price at a specific index"""
+        if index < 0 or index >= len(self.original_prices):
+            return None
+        return self.original_prices[index]
+    
     def create_extended_dataset(self, output_file, num_samples=10000, base_data_file="datasets/XAUUSD.csv"):
         """
         Create an extended dataset by augmenting existing data

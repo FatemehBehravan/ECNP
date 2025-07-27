@@ -54,6 +54,10 @@ class XAUUSDTradingStrategy:
         # Each position: {'type': 1/-1, 'size': float, 'entry_price': float, 'entry_index': int, 'id': str}
         self.next_position_id = 1  # Auto-incrementing position ID
         
+        # Signal confirmation tracking
+        self.recent_signals = []  # Track recent signals for confirmation
+        self.required_confirmations = 2  # Require 2 consecutive signals
+        
         # Legacy compatibility (for existing code that checks self.position)
         self.position = 0  # 0: no positions, 1: has long, -1: has short, 2: has both
         self.position_size = 0  # Total invested amount across all positions
@@ -155,9 +159,7 @@ class XAUUSDTradingStrategy:
     
     def check_trading_signal(self, predictions, current_price, current_index):
         """
-        Check if there's a trading signal based on predictions
-        
-        Strategy: Compare y_pred[i+lookforward] with current_price
+        Check if there's a trading signal based on predictions with trend following
         
         Args:
             predictions: Model predictions dictionary
@@ -179,13 +181,43 @@ class XAUUSDTradingStrategy:
         # Calculate relative price change
         price_change = (predicted_price - current_price) / current_price
         
-        # Generate signal based on significance threshold
+        # Simple trend following: get recent price trend
+        trend_signal = self._get_trend_direction(current_index)
+        
+        # Generate signal based on significance threshold AND trend alignment
         if abs(price_change) > self.significance_threshold:
-            signal = 1 if price_change > 0 else -1  # 1 for buy, -1 for sell
-            strength = abs(price_change)
-            return signal, strength, predicted_price
+            raw_signal = 1 if price_change > 0 else -1
+            
+            # Only trade if signal aligns with trend (or no clear trend)
+            if trend_signal == 0 or raw_signal == trend_signal:
+                signal = raw_signal
+                strength = abs(price_change)
+                return signal, strength, predicted_price
         
         return 0, 0.0, predicted_price
+    
+    def _get_trend_direction(self, current_index):
+        """
+        Simple trend detection: compare current price to price 20 periods ago
+        Returns: 1 (uptrend), -1 (downtrend), 0 (sideways)
+        """
+        try:
+            if current_index < 20:
+                return 0  # Not enough data
+            
+            current_price = self.data_manager.get_price_at_index(current_index)
+            past_price = self.data_manager.get_price_at_index(current_index - 20)
+            
+            trend_change = (current_price - past_price) / past_price
+            
+            if trend_change > 0.02:  # 2% uptrend
+                return 1
+            elif trend_change < -0.02:  # 2% downtrend
+                return -1
+            else:
+                return 0  # Sideways
+        except:
+            return 0  # Default to no trend if error
     
     def _update_legacy_position_status(self):
         """Update legacy position variables for compatibility"""
@@ -213,10 +245,26 @@ class XAUUSDTradingStrategy:
         """Calculate total capital exposure across all positions"""
         return sum(pos['size'] for pos in self.positions)
     
+    def _calculate_position_pnl(self, position, current_price):
+        """Calculate current P&L for a position"""
+        entry_price = position['entry_price']
+        position_size = position['size']
+        price_diff = current_price - entry_price
+        shares = position_size / entry_price
+        
+        if position['type'] == 1:  # LONG
+            return price_diff * shares
+        else:  # SHORT
+            return -price_diff * shares
+    
     def _can_open_new_position(self, position_size):
         """Check if we can open a new position given capital constraints"""
-        total_exposure = self._get_total_exposure()
-        return (total_exposure + position_size) <= (self.current_capital * 0.99)  # INCREASED: Allow 99% utilization
+        # SIMPLIFIED: Only allow ONE position at a time (much safer)
+        if len(self.positions) >= 2:
+            return False
+            
+        # Much smaller position sizes
+        return position_size <= (self.current_capital * 0.3)  # Max 30% per trade
     
     def _should_close_positions(self, signal):
         """
@@ -290,30 +338,57 @@ class XAUUSDTradingStrategy:
             self._close_position_by_index(pos_index, current_price, current_index, trade_record)
             positions_closed += 1
         
-        # 2. Open new position if signal exists and we have capital
-        if signal != 0:
+        # 2. AGGRESSIVE risk management with profit taking and tight stops
+        positions_to_force_close = []
+        for i, pos in enumerate(self.positions):
+            holding_period = current_index - pos['entry_index']
+            current_pnl = self._calculate_position_pnl(pos, current_price)
+            pnl_percent = current_pnl / pos['size']
+            
+            # MUCH tighter stop-loss (5%) and profit taking (10%)
+            should_close = (
+                holding_period > 20 or          # Close after 20 periods max
+                pnl_percent < -0.05 or          # 5% stop loss
+                pnl_percent > 0.10              # 10% profit taking
+            )
+            
+            if should_close:
+                positions_to_force_close.append(i)
+        
+        # Close forced positions
+        for pos_index in reversed(positions_to_force_close):
+            self._close_position_by_index(pos_index, current_price, current_index, trade_record)
+            positions_closed += 1
+        
+        # 3. Signal confirmation and position opening
+        # Track recent signals for confirmation
+        self.recent_signals.append(signal)
+        if len(self.recent_signals) > self.required_confirmations:
+            self.recent_signals.pop(0)  # Keep only recent signals
+        
+        # Only trade if we have confirmed signals (reduce false positives)
+        confirmed_signal = 0
+        if len(self.recent_signals) >= self.required_confirmations:
+            # Check if recent signals are consistent and non-zero
+            if all(s == signal and s != 0 for s in self.recent_signals):
+                confirmed_signal = signal
+        
+        if confirmed_signal != 0:
             position_size = self.current_capital * self.max_position_size
             if self._can_open_new_position(position_size):
                 # Determine action type for clearer logging
-                signal_type = "LONG" if signal == 1 else "SHORT"
-                has_same_direction = (signal == 1 and has_long_before) or (signal == -1 and has_short_before)
+                signal_type = "LONG" if confirmed_signal == 1 else "SHORT"
+                action_desc = f"CONFIRMED_{signal_type}"
                 
-                if positions_closed > 0:
-                    action_desc = f"SWITCH_TO_{signal_type}"
-                elif has_same_direction:
-                    action_desc = f"ADD_{signal_type}"
-                else:
-                    action_desc = f"OPEN_{signal_type}"
-                
-                self._open_new_position(signal, current_price, current_index, position_size, trade_record, strength)
+                self._open_new_position(confirmed_signal, current_price, current_index, position_size, trade_record, strength)
                 trade_record['action_type'] = action_desc
                 position_opened = True
             else:
                 # Log that we wanted to trade but couldn't due to capital constraints
-                signal_type = "LONG" if signal == 1 else "SHORT"
+                signal_type = "LONG" if confirmed_signal == 1 else "SHORT"
                 trade_record['action'] = f'BLOCKED_{signal_type}_CAPITAL'
         
-        # 3. Update legacy position status
+        # 4. Update legacy position status
         self._update_legacy_position_status()
         
         # Record trade details
@@ -449,7 +524,7 @@ class XAUUSDTradingStrategy:
         for data_point in self.data_manager.data_iterator(
             start_index=start_index, 
             step_size=step_size, 
-            max_iterations=10000  # INCREASED: Allow much more data processing
+            max_iterations=5000  # REDUCED: More conservative iteration limit
         ):
             if trades_executed >= max_trades:
                 break

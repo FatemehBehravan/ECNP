@@ -159,23 +159,22 @@ def run_detailed_strategy_analysis():
     print("=" * 100)
     print("DETAILED XAUUSD TRADING STRATEGY ANALYSIS")
     print("Complete Trade-by-Trade History")
-    print("🆕 NEW: Support for Multiple Concurrent Positions")
+    print("🆕 NEW: Conservative Single-Position Trading with Risk Management")
     print("=" * 100)
-    print("📋 TRADING RULES:")
-    print("  None → LONG: Open LONG")
-    print("  LONG → LONG: Open another LONG (accumulate)")
-    print("  LONG → SHORT: Close ALL LONG → Open SHORT (switch)")
-    print("  LONG → None: Hold all LONG positions")
-    print("  None → SHORT: Open SHORT") 
-    print("  SHORT → SHORT: Open another SHORT (accumulate)")
-    print("  SHORT → LONG: Close ALL SHORT → Open LONG (switch)")
-    print("  SHORT → None: Hold all SHORT positions")
+    print("📋 ENHANCED FEATURES:")
+    print("  🔒 SINGLE POSITION: Only one position at a time (much safer)")
+    print("  ✅ SIGNAL CONFIRMATION: Requires 2+ consecutive signals")
+    print("  📈 TREND FOLLOWING: Only trades with 20-period trend direction")
+    print("  💸 TIGHT STOPS: 5% stop-loss, 10% profit-taking")
+    print("  ⏰ TIME LIMITS: Auto-close positions after 20 periods")
+    print("  💰 SMALL SIZES: 5-20% position sizes (much safer)")
+    print("  🛡️ CAPITAL PROTECTION: Max 30% capital per trade")
     print("")
-    print("📈 FEATURES:")
-    print("  • Multiple same-direction positions (LONG_P1, LONG_P2, etc.)")
-    print("  • Direction switching closes ALL opposite positions")
-    print("  • Each position has unique ID for tracking")
-    print("  • Position size limits prevent over-leverage")
+    print("📊 RISK MANAGEMENT:")
+    print("  • No over-leveraging with single position limit")
+    print("  • False signal reduction via confirmation")
+    print("  • Trend alignment prevents counter-trend trades")
+    print("  • Quick profit-taking and loss-cutting")
     print("=" * 100)
     
     # Strategy configurations (UPDATED: Realistic thresholds based on model predictions)
@@ -264,6 +263,8 @@ def run_detailed_strategy_analysis():
         if strategy.trade_history:
             opened_actions = [t for t in strategy.trade_history if 'OPEN' in t['action']]
             closed_actions = [t for t in strategy.trade_history if 'CLOSE' in t['action']]
+            blocked_actions = [t for t in strategy.trade_history if 'BLOCKED' in t.get('action', '')]
+            
             print(f"    Total trade records: {len(strategy.trade_history)}")
             print(f"    OPEN actions: {len(opened_actions)}")
             print(f"    CLOSE actions: {len(closed_actions)}")
@@ -610,10 +611,60 @@ def quick_model_data_test():
     print("="*60)
 
 def main():
+    """Main execution function"""
+    print("Choose analysis mode:")
+    print("1. Full Strategy Analysis (original functionality)")
+    print("2. Single Prediction Analysis")
+    print("3. Full Analysis + Single Prediction Analysis")
+    print("4. Quick Model & Data Test (Debug)")
+    
+    # For automation, you can change this
+    choice = input("Enter choice (1-4): ").strip()
     
     combined_trades, summary_df = None, None
     
-    return combined_trades, summary_df
+    # Run Quick Test
+    if choice == "4":
+        quick_model_data_test()
+        return None, None
+    
+    # Run Full Strategy Analysis
+    if choice in ["1", "3"]:
+        print("\n" + "="*100)
+        print("RUNNING FULL STRATEGY ANALYSIS")
+        print("="*100)
+        
+        # Run detailed analysis
+        combined_trades, summary_df = run_detailed_strategy_analysis()
+        
+        if combined_trades is not None:
+            # Display detailed trade information
+            display_trade_details_by_strategy(combined_trades)
+            
+            print(f"\n{'='*120}")
+            print("✅ FULL ANALYSIS COMPLETE")
+            print("="*120)
+            print("📁 All detailed trade histories saved to: trading_results/detailed_analysis/")
+            print("📊 Files generated:")
+            print("   • Individual strategy trade logs (CSV)")
+            print("   • Combined trade history (CSV)")
+            print("   • Strategy performance comparison (CSV)")
+    
+    # Run Single Prediction Analysis
+    if choice in ["2", "3"]:
+        test_single_prediction_sequence()
+    
+    # Return appropriate results
+    if choice == "1":
+        return combined_trades, summary_df
+    elif choice == "2":
+        return None, None  # Just ran single prediction
+    elif choice == "3":
+        print("\n🎯 All analysis complete! Use the generated files for further investigation.")
+        return combined_trades, summary_df
+    else:
+        print("Invalid choice.")
+        return None, None
 
 if __name__ == "__main__":
     trades, summary = main() 
