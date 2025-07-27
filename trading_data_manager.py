@@ -246,7 +246,7 @@ class TradingDataManager:
         current_idx = start_index
         iteration_count = 0
         
-        while current_idx < len(self.scaled_df) - 50:  # Keep some buffer
+        while current_idx < len(self.scaled_df) - 10:  # REDUCED: Smaller buffer for more trading opportunities
             if max_iterations and iteration_count >= max_iterations:
                 break
                 

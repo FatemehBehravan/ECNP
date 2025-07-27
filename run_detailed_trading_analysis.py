@@ -185,37 +185,37 @@ def run_detailed_strategy_analysis():
             "name": "Ultra Conservative",
             "threshold": 0.10,  # 10% threshold - Only trade on extreme predictions
             "position_size": 0.1,  # 10% max position
-            "max_trades": 1000,
+            "max_trades": 5000,
             "step_size": 2
         },
         {
             "name": "Conservative", 
             "threshold": 0.07,  # 7% threshold - Trade on very strong predictions
             "position_size": 0.15,  # 15% max position
-            "max_trades": 1000,
+            "max_trades": 5000,
             "step_size": 2
         },
         {
             "name": "Moderate",
             "threshold": 0.04,  # 4% threshold - Trade on strong predictions
             "position_size": 0.2,  # 20% max position
-            "max_trades": 1000,
+            "max_trades": 5000,
             "step_size": 2
         },
-        {
-            "name": "Aggressive",
-            "threshold": 0.01,  # 1% threshold - Trade on above-average predictions
-            "position_size": 0.25,  # 25% max position
-            "max_trades": 1000,
-            "step_size": 2
-        },
-        {
-            "name": "Ultra Aggressive",
-            "threshold": 0.005,  # 0.5% threshold - Trade on most predictions
-            "position_size": 0.3,  # 30% max position
-            "max_trades": 1000,
-            "step_size": 2
-        }
+        # {
+        #     "name": "Aggressive",
+        #     "threshold": 0.01,  # 1% threshold - Trade on above-average predictions
+        #     "position_size": 0.25,  # 25% max position
+        #     "max_trades": 5000,
+        #     "step_size": 2
+        # },
+        # {
+        #     "name": "Ultra Aggressive",
+        #     "threshold": 0.005,  # 0.5% threshold - Trade on most predictions
+        #     "position_size": 0.3,  # 30% max position
+        #     "max_trades": 5000,
+        #     "step_size": 2
+        # }
     ]
     
     all_trade_histories = []
@@ -254,7 +254,7 @@ def run_detailed_strategy_analysis():
         
         report = strategy.run_backtest(
             data_file="datasets/Strategy_XAUUSD.csv",
-            start_index=50,
+            start_index=1000,
             max_trades=config['max_trades'],
             step_size=config['step_size']
         )
@@ -267,13 +267,20 @@ def run_detailed_strategy_analysis():
             print(f"    Total trade records: {len(strategy.trade_history)}")
             print(f"    OPEN actions: {len(opened_actions)}")
             print(f"    CLOSE actions: {len(closed_actions)}")
+            print(f"    BLOCKED actions: {len(blocked_actions)} (capital constraints)")
             print(f"    Final position: {strategy.position} (0=None, 1=Long, -1=Short)")
             print(f"    Final capital: ${strategy.current_capital:.2f}")
+            print(f"    Active positions: {len(strategy.positions)}")
+            print(f"    Total exposure: ${strategy._get_total_exposure():.2f} ({strategy._get_total_exposure()/strategy.current_capital*100:.1f}% of capital)")
             
             # Check if positions are being held indefinitely
             if len(opened_actions) > len(closed_actions):
                 print(f"    ⚠️  OPEN POSITIONS DETECTED: {len(opened_actions) - len(closed_actions)} unclosed positions")
                 print(f"    This may explain why no 'completed' trades are reported.")
+            
+            # Check for capital constraints
+            if len(blocked_actions) > 0:
+                print(f"    🚫 CAPITAL CONSTRAINTS: {len(blocked_actions)} trades blocked due to insufficient capital")
                 
             # Show sample of trade history with rule types
             if len(strategy.trade_history) > 0:
@@ -299,6 +306,8 @@ def run_detailed_strategy_analysis():
                             symbol = "📉"   # Open short
                     elif "CLOSE" in action:
                         symbol = "❌"    # Close
+                    elif "BLOCKED" in action:
+                        symbol = "🚫"    # Blocked
                     else:
                         symbol = "⏸️"     # Other
                     
@@ -307,11 +316,12 @@ def run_detailed_strategy_analysis():
                         print(f"          Rule: {action_type} (Strength: {trade.get('signal_strength', 0):.4f})")
         else:
             print(f"    ❌ NO TRADE HISTORY GENERATED!")
-            print(f"    This suggests either:")
-            print(f"       - Model predictions are failing")
-            print(f"       - No signals meet the threshold")
-            print(f"       - Data loading issues")
-            print(f"       - Backtest iteration issues")
+            print(f"    🔍 POSSIBLE REASONS:")
+            print(f"       1. Model predictions are failing (returns None)")
+            print(f"       2. No signals meet the threshold ({config['threshold']*100:.2f}%)")
+            print(f"       3. Data loading/iteration issues")
+            print(f"       4. Hardcoded iteration limits hit (max_iterations)")
+            print(f"       5. Capital constraints preventing trades")
         
         # Debug: Analyze why aggressive strategies have fewer trades
         signal_analysis = analyze_signal_generation(strategy, config)
@@ -402,11 +412,7 @@ def run_detailed_strategy_analysis():
         print("="*100)
         print(summary_df.to_string(index=False))
         
-        # Analyze rule effectiveness
-        print(f"\n{'='*100}")
-        print("🔍 ANALYZING TRADING RULE EFFECTIVENESS")
-        print("="*100)
-        rule_analysis = analyze_rule_effectiveness(combined_trades)
+
         
         # Print signal analysis summary
         print(f"\n{'='*100}")
@@ -493,62 +499,7 @@ def display_trade_details_by_strategy(combined_trades):
         print(f"  Largest Win: ${max_win:.2f}")
         print(f"  Largest Loss: ${max_loss:.2f}")
 
-def analyze_rule_effectiveness(combined_trades):
-    """
-    Analyze which trading rules are most effective
-    """
-    if combined_trades is None or combined_trades.empty:
-        print("No trade data available for rule analysis.")
-        return
-    
-    print(f"\n{'='*100}")
-    print("📊 TRADING RULE EFFECTIVENESS ANALYSIS")
-    print("="*100)
-    print("📋 RULE DEFINITIONS:")
-    print("  • OPEN_LONG/SHORT: First position of that type")
-    print("  • ADD_LONG/SHORT: Additional position in same direction")
-    print("  • SWITCH_TO_LONG/SHORT: Close all opposite positions, open new direction")
-    print("="*100)
-    
-    # Group by trading rule
-    rule_analysis = combined_trades.groupby('Trade_Rule').agg({
-        'PnL': ['count', 'sum', 'mean', 'std'],
-        'Return_Percent': 'mean',
-        'Result': lambda x: (x == 'SUCCESS').sum() / len(x) * 100
-    }).round(2)
-    
-    # Flatten column names
-    rule_analysis.columns = ['Trade_Count', 'Total_PnL', 'Avg_PnL', 'PnL_StdDev', 'Avg_Return_Pct', 'Win_Rate_Pct']
-    
-    # Sort by total P&L
-    rule_analysis = rule_analysis.sort_values('Total_PnL', ascending=False)
-    
-    print("📈 RULE PERFORMANCE SUMMARY:")
-    print(rule_analysis.to_string())
-    
-    # Best and worst rules
-    if len(rule_analysis) > 0:
-        best_rule = rule_analysis.index[0]
-        worst_rule = rule_analysis.index[-1]
-        
-        print(f"\n🏆 BEST RULE: {best_rule}")
-        print(f"   Total P&L: ${rule_analysis.loc[best_rule, 'Total_PnL']:.2f}")
-        print(f"   Win Rate: {rule_analysis.loc[best_rule, 'Win_Rate_Pct']:.1f}%")
-        print(f"   Trade Count: {rule_analysis.loc[best_rule, 'Trade_Count']}")
-        
-        print(f"\n💔 WORST RULE: {worst_rule}")
-        print(f"   Total P&L: ${rule_analysis.loc[worst_rule, 'Total_PnL']:.2f}")
-        print(f"   Win Rate: {rule_analysis.loc[worst_rule, 'Win_Rate_Pct']:.1f}%")
-        print(f"   Trade Count: {rule_analysis.loc[worst_rule, 'Trade_Count']}")
-    
-    # Rule distribution across strategies
-    print(f"\n📋 RULE USAGE BY STRATEGY:")
-    strategy_rule_counts = combined_trades.groupby(['Strategy', 'Trade_Rule']).size().unstack(fill_value=0)
-    print(strategy_rule_counts.to_string())
-    
-    print("="*100)
-    
-    return rule_analysis
+
 
 def test_single_prediction_sequence():
     """
@@ -659,60 +610,10 @@ def quick_model_data_test():
     print("="*60)
 
 def main():
-    """Main execution function"""
-    print("Choose analysis mode:")
-    print("1. Full Strategy Analysis (original functionality)")
-    print("2. Single Prediction Analysis")
-    print("3. Full Analysis + Single Prediction Analysis")
-    print("4. Quick Model & Data Test (Debug)")
-    
-    # For automation, you can change this
-    choice = input("Enter choice (1-4): ").strip()
     
     combined_trades, summary_df = None, None
     
-    # Run Quick Test
-    if choice == "4":
-        quick_model_data_test()
-        return None, None
-    
-    # Run Full Strategy Analysis
-    if choice in ["1", "3"]:
-        print("\n" + "="*100)
-        print("RUNNING FULL STRATEGY ANALYSIS")
-        print("="*100)
-        
-        # Run detailed analysis
-        combined_trades, summary_df = run_detailed_strategy_analysis()
-        
-        if combined_trades is not None:
-            # Display detailed trade information
-            display_trade_details_by_strategy(combined_trades)
-            
-            print(f"\n{'='*120}")
-            print("✅ FULL ANALYSIS COMPLETE")
-            print("="*120)
-            print("📁 All detailed trade histories saved to: trading_results/detailed_analysis/")
-            print("📊 Files generated:")
-            print("   • Individual strategy trade logs (CSV)")
-            print("   • Combined trade history (CSV)")
-            print("   • Strategy performance comparison (CSV)")
-    
-    # Run Single Prediction Analysis
-    if choice in ["2", "3"]:
-        test_single_prediction_sequence()
-    
-    # Return appropriate results
-    if choice == "1":
-        return combined_trades, summary_df
-    elif choice == "2":
-        return None, None  # Just ran single prediction
-    elif choice == "3":
-        print("\n🎯 All analysis complete! Use the generated files for further investigation.")
-        return combined_trades, summary_df
-    else:
-        print("Invalid choice.")
-        return None, None
+    return combined_trades, summary_df
 
 if __name__ == "__main__":
     trades, summary = main() 

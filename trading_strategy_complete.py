@@ -216,7 +216,7 @@ class XAUUSDTradingStrategy:
     def _can_open_new_position(self, position_size):
         """Check if we can open a new position given capital constraints"""
         total_exposure = self._get_total_exposure()
-        return (total_exposure + position_size) <= (self.current_capital * 0.95)  # Keep 5% buffer
+        return (total_exposure + position_size) <= (self.current_capital * 0.99)  # INCREASED: Allow 99% utilization
     
     def _should_close_positions(self, signal):
         """
@@ -449,7 +449,7 @@ class XAUUSDTradingStrategy:
         for data_point in self.data_manager.data_iterator(
             start_index=start_index, 
             step_size=step_size, 
-            max_iterations=2000
+            max_iterations=10000  # INCREASED: Allow much more data processing
         ):
             if trades_executed >= max_trades:
                 break
