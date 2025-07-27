@@ -492,6 +492,7 @@ class XAUUSDTradingStrategy:
     def run_backtest(self, 
                      data_file="datasets/Strategy_XAUUSD.csv", 
                      start_index=100, 
+                     end_index=None,
                      max_trades=1000,
                      step_size=5):
         """
@@ -500,6 +501,7 @@ class XAUUSDTradingStrategy:
         Args:
             data_file: Path to historical data
             start_index: Starting index in the dataset
+            end_index: Ending index in the dataset (None for full dataset)
             max_trades: Maximum number of trades to execute
             step_size: Step size for moving through data
         """
@@ -516,13 +518,14 @@ class XAUUSDTradingStrategy:
         successful_predictions = 0
         total_predictions = 0
         
-        print(f"Starting backtest from index {start_index}...")
+        print(f"Starting backtest from index {start_index} to {end_index if end_index else 'end'}...")
         print(f"Target trades: {max_trades}")
         print()
         
         # Process data using the data manager iterator
         for data_point in self.data_manager.data_iterator(
             start_index=start_index, 
+            end_index=end_index,   # NEW: Add end_index parameter
             step_size=step_size, 
             max_iterations=5000  # REDUCED: More conservative iteration limit
         ):

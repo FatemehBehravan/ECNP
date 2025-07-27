@@ -201,20 +201,20 @@ def run_detailed_strategy_analysis():
             "max_trades": 5000,
             "step_size": 2
         },
-        # {
-        #     "name": "Aggressive",
-        #     "threshold": 0.01,  # 1% threshold - Trade on above-average predictions
-        #     "position_size": 0.25,  # 25% max position
-        #     "max_trades": 5000,
-        #     "step_size": 2
-        # },
-        # {
-        #     "name": "Ultra Aggressive",
-        #     "threshold": 0.005,  # 0.5% threshold - Trade on most predictions
-        #     "position_size": 0.3,  # 30% max position
-        #     "max_trades": 5000,
-        #     "step_size": 2
-        # }
+        {
+            "name": "Aggressive",
+            "threshold": 0.01,  # 1% threshold - Trade on above-average predictions
+            "position_size": 0.25,  # 25% max position
+            "max_trades": 5000,
+            "step_size": 2
+        },
+        {
+            "name": "Ultra Aggressive",
+            "threshold": 0.005,  # 0.5% threshold - Trade on most predictions
+            "position_size": 0.3,  # 30% max position
+            "max_trades": 5000,
+            "step_size": 2
+        }
     ]
     
     all_trade_histories = []
@@ -253,7 +253,8 @@ def run_detailed_strategy_analysis():
         
         report = strategy.run_backtest(
             data_file="datasets/Strategy_XAUUSD.csv",
-            start_index=1000,
+            start_index=1000,  # CHANGED: Start from index 100
+            end_index=5000,   # NEW: End at index 1000
             max_trades=config['max_trades'],
             step_size=config['step_size']
         )
@@ -523,7 +524,7 @@ def test_single_prediction_sequence():
     strategy.data_manager.load_extended_data("datasets/Strategy_XAUUSD.csv")
     
     # Get one data point
-    data_iterator = strategy.data_manager.data_iterator(start_index=100, step_size=1, max_iterations=1)
+    data_iterator = strategy.data_manager.data_iterator(start_index=100, end_index=None, step_size=1, max_iterations=1)
     data_point = next(data_iterator)
     
     current_index = data_point['index']
@@ -584,7 +585,7 @@ def quick_model_data_test():
         
         # Test single prediction
         print("3. Testing single prediction...")
-        data_iterator = strategy.data_manager.data_iterator(start_index=100, step_size=1, max_iterations=1)
+        data_iterator = strategy.data_manager.data_iterator(start_index=100, end_index=None, step_size=1, max_iterations=1)
         data_point = next(data_iterator)
         
         predictions = strategy.predict_future_prices(data_point['index'])
