@@ -30,6 +30,7 @@ class XAUUSDTradingStrategy:
                  prediction_lookforward=5,
                  significance_threshold=0.002,  # 0.2% price change threshold
                  max_position_size=0.8,  # Maximum 80% of capital per trade
+                 max_concurrent_positions=3,  # NEW: Maximum concurrent positions
                  device="cuda"):
         """
         Initialize the trading strategy
@@ -40,6 +41,7 @@ class XAUUSDTradingStrategy:
             prediction_lookforward: How many steps ahead to look (default 5 as requested)
             significance_threshold: Minimum price change to trigger trade (as fraction)
             max_position_size: Maximum fraction of capital to risk per trade
+            max_concurrent_positions: Maximum number of concurrent positions allowed
             device: Computing device (cuda/cpu)
         """
         self.device = torch.device(device if torch.cuda.is_available() else "cpu")
@@ -48,6 +50,7 @@ class XAUUSDTradingStrategy:
         self.prediction_lookforward = prediction_lookforward
         self.significance_threshold = significance_threshold
         self.max_position_size = max_position_size
+        self.max_concurrent_positions = max_concurrent_positions
         
         # Trading state - UPDATED: Support multiple concurrent positions
         self.positions = []  # List of position dictionaries
@@ -80,6 +83,7 @@ class XAUUSDTradingStrategy:
         print(f"  Initial Capital: ${initial_capital}")
         print(f"  Prediction Lookforward: {prediction_lookforward} steps")
         print(f"  Significance Threshold: {significance_threshold*100:.2f}%")
+        print(f"  Max Concurrent Positions: {max_concurrent_positions}")
         print(f"  Device: {self.device}")
         
     def _load_model(self, model_path):
@@ -259,8 +263,8 @@ class XAUUSDTradingStrategy:
     
     def _can_open_new_position(self, position_size):
         """Check if we can open a new position given capital constraints"""
-        # SIMPLIFIED: Only allow ONE position at a time (much safer)
-        if len(self.positions) >= 2:
+        # NEW: Configurable concurrent position limit
+        if len(self.positions) >= self.max_concurrent_positions:
             return False
             
         # Much smaller position sizes
@@ -348,8 +352,8 @@ class XAUUSDTradingStrategy:
             # MUCH tighter stop-loss (5%) and profit taking (10%)
             should_close = (
                 holding_period > 20 or          # Close after 20 periods max
-                pnl_percent < -0.05 or          # 5% stop loss
-                pnl_percent > 0.10              # 10% profit taking
+                pnl_percent < -0.01 or          # 1% stop loss
+                pnl_percent > 0.02              # 2% profit taking
             )
             
             if should_close:
@@ -520,15 +524,28 @@ class XAUUSDTradingStrategy:
         
         print(f"Starting backtest from index {start_index} to {end_index if end_index else 'end'}...")
         print(f"Target trades: {max_trades}")
-        print()
+        
+        # Show the backtest date range immediately
+        if end_index is not None:
+            self.data_manager.show_backtest_range(start_index, end_index)
+        else:
+            print(f"⚠️  WARNING: No end_index specified - will process entire dataset!")
         
         # Process data using the data manager iterator
+        print(f"🔄 Starting data iteration with parameters:")
+        print(f"   start_index={start_index}, end_index={end_index}, step_size={step_size}")
+        
+        iteration_count = 0
         for data_point in self.data_manager.data_iterator(
             start_index=start_index, 
             end_index=end_index,   # NEW: Add end_index parameter
             step_size=step_size, 
             max_iterations=5000  # REDUCED: More conservative iteration limit
         ):
+            iteration_count += 1
+            if iteration_count % 50 == 0:  # Progress indicator every 50 iterations
+                print(f"   Processing iteration {iteration_count}, index {data_point['index']}")
+                
             if trades_executed >= max_trades:
                 break
                 
@@ -572,12 +589,17 @@ class XAUUSDTradingStrategy:
                 print(f"Error at index {current_index}: {str(e)}")
                 continue
         
-        # Close any remaining positions
+        # Close any remaining positions at the backtest end index
         if len(self.positions) > 0:
-            final_price = self.data_manager.get_price_at_index(len(df) - 1)
-            final_index = len(df) - 1
-            
-            print(f"Closing {len(self.positions)} remaining positions at ${final_price:.2f}")
+            # FIXED: Use backtest end_index, not full dataset length
+            if end_index is not None:
+                final_index = end_index - 1  # Use exactly the backtest end
+                final_price = self.data_manager.get_price_at_index(final_index)
+                print(f"Closing {len(self.positions)} remaining positions at backtest end (index {final_index}): ${final_price:.2f}")
+            else:
+                final_index = len(df) - 1
+                final_price = self.data_manager.get_price_at_index(final_index)
+                print(f"Closing {len(self.positions)} remaining positions at dataset end (index {final_index}): ${final_price:.2f}")
             
             # Close each position individually
             positions_to_close = list(range(len(self.positions)))

@@ -62,10 +62,31 @@ class TradingDataManager:
         self.scaled_df['datetime'] = df['datetime']
         
         print(f"Loaded {len(df)} data points")
-        print(f"Date range: {df['datetime'].min()} to {df['datetime'].max()}")
+        print(f"Full dataset date range: {df['datetime'].min()} to {df['datetime'].max()}")
         
         self.is_fitted = True
         return df
+    
+    def show_backtest_range(self, start_index, end_index):
+        """Show the actual backtest date range being used"""
+        try:
+            if hasattr(self, 'original_datetimes') and self.original_datetimes is not None:
+                if start_index < len(self.original_datetimes) and end_index <= len(self.original_datetimes):
+                    start_date = self.original_datetimes[start_index]
+                    end_date = self.original_datetimes[min(end_index-1, len(self.original_datetimes)-1)]
+                    print(f"📅 BACKTEST DATE RANGE: {start_date} to {end_date}")
+                    print(f"📊 BACKTEST INDEXES: {start_index} to {end_index-1} ({end_index-start_index} periods)")
+                    return start_date, end_date
+                else:
+                    print(f"📊 BACKTEST INDEXES: {start_index} to {end_index-1} ({end_index-start_index} periods)")
+                    print(f"⚠️  Date range unavailable (indexes out of bounds)")
+            else:
+                print(f"📊 BACKTEST INDEXES: {start_index} to {end_index-1} ({end_index-start_index} periods)")
+                print(f"⚠️  Date range unavailable (data not loaded yet)")
+        except Exception as e:
+            print(f"📊 BACKTEST INDEXES: {start_index} to {end_index-1} ({end_index-start_index} periods)")
+            print(f"⚠️  Date range unavailable (error: {str(e)})")
+        return None, None
     
     def get_context_data(self, end_index, context_length=50):
         """

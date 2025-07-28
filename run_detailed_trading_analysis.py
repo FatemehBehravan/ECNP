@@ -2,6 +2,10 @@
 """
 Detailed Trading Analysis with Complete Trade History
 Shows comprehensive trade-by-trade results for each strategy configuration
+
+QUICK TEST CONFIGURATION:
+- To change test range, modify BACKTEST_START_INDEX and BACKTEST_END_INDEX below
+- All functions will automatically use these global settings
 """
 
 import pandas as pd
@@ -9,13 +13,29 @@ import numpy as np
 from datetime import datetime
 from trading_strategy_complete import XAUUSDTradingStrategy
 
-def analyze_trade_history(strategy, strategy_name):
+# ===================================================================
+# 🔧 GLOBAL TEST CONFIGURATION - CHANGE THESE FOR DIFFERENT TESTS
+# ===================================================================
+BACKTEST_START_INDEX = 1000   
+BACKTEST_END_INDEX = 3000    
+
+
+def analyze_trade_history(strategy, strategy_name, end_index=None):
     """
     Extract and analyze detailed trade history from a strategy
+    
+    Args:
+        strategy: The trading strategy object
+        strategy_name: Name of the strategy
+        end_index: The end index of the backtest (None = use global BACKTEST_END_INDEX)
     
     Returns:
         DataFrame with detailed trade information
     """
+    # FIXED: Use global BACKTEST_END_INDEX if not provided
+    if end_index is None:
+        end_index = BACKTEST_END_INDEX
+        
     if not strategy.trade_history:
         return pd.DataFrame()
     
@@ -26,18 +46,19 @@ def analyze_trade_history(strategy, strategy_name):
     open_trades = df_trades[df_trades['action'].str.startswith('OPEN')].copy()
     close_trades = df_trades[df_trades['action'].str.startswith('CLOSE')].copy()
     
+    # Identify unclosed positions (last few trades that don't have closes)
+    unclosed_count = len(open_trades) - len(close_trades)
+    
     detailed_trades = []
     
-<<<<<<< HEAD
-    # Get the last available close price from the data (for open positions)
+    # DIRECT FIX: Use exactly end_index - 1 (user controls this)
     last_close_price = None
-    if hasattr(strategy, 'data_manager') and hasattr(strategy.data_manager, 'original_prices'):
-        if len(strategy.data_manager.original_prices) > 0:
-            last_close_price = strategy.data_manager.original_prices[-1]
-            print(f"  📊 Last available close price: ${last_close_price:.2f} (for open positions)")
+    actual_end_idx = end_index - 1  # EXACTLY what user specified
     
-=======
->>>>>>> 2dbd82a3f8dd7f34f49b806a4f1da3ba30ad40a2
+    if hasattr(strategy, 'data_manager') and hasattr(strategy.data_manager, 'original_prices'):
+        if len(strategy.data_manager.original_prices) > actual_end_idx:
+            last_close_price = strategy.data_manager.original_prices[actual_end_idx]
+    
     # Match opening and closing trades by position ID (NEW: Multiple position support)
     for i, open_trade in open_trades.iterrows():
         # Extract position ID from action (e.g., "OPEN_LONG_P1" -> "P1")
@@ -47,19 +68,6 @@ def analyze_trade_history(strategy, strategy_name):
             # Fallback: extract from action string
             action_parts = open_trade['action'].split('_')
             position_id = action_parts[-1] if len(action_parts) > 2 else None
-<<<<<<< HEAD
-=======
-        
-        if position_id:
-            # Find corresponding close trade with same position ID
-            close_trade_candidates = close_trades[
-                (close_trades.index > i) & 
-                (close_trades['action'].str.contains(position_id, na=False))
-            ]
-        else:
-            # Fallback to old logic for compatibility
-            close_trade_candidates = close_trades[close_trades.index > i]
->>>>>>> 2dbd82a3f8dd7f34f49b806a4f1da3ba30ad40a2
         
         if position_id:
             # Find corresponding close trade with same position ID
@@ -74,20 +82,18 @@ def analyze_trade_history(strategy, strategy_name):
         # Check if we found a proper close trade
         if len(close_trade_candidates) > 0:
             close_trade = close_trade_candidates.iloc[0]
-<<<<<<< HEAD
             exit_price = close_trade['price']
             closing_time = close_trade['timestamp']
             is_open_position = False
         else:
-            # FIXED: No close trade found - this is an open position
-            # Use the last available close price from the dataset
+            # ROBUST FIX: No close trade found - use last_close_price from actual_end_idx
             if last_close_price is not None:
                 exit_price = last_close_price
                 closing_time = "OPEN_POSITION"
                 is_open_position = True
-                print(f"    🔍 Open position {position_id}: Using last close price ${exit_price:.2f}")
+                entry_price_check = open_trade.get('entry_price', open_trade['price'])
             else:
-                print(f"    ❌ Open position {position_id}: No last close price available, skipping")
+                print(f"    ❌ Open position {position_id}: No backtest end price available, skipping")
                 continue
         
         # Calculate trade details
@@ -152,67 +158,8 @@ def analyze_trade_history(strategy, strategy_name):
         }
         
         detailed_trades.append(trade_detail)
-=======
-            
-            # Calculate trade details
-            entry_price = open_trade.get('entry_price', open_trade['price'])
-            exit_price = close_trade['price']
-            
-            # Get the correct position size (NEW: Multiple position support)
-            position_size = open_trade.get('position_size', 
-                                         close_trade.get('position_size', 0))
-            
-            # Use the P&L from close trade if available (NEW: More accurate)
-            if 'pnl' in close_trade:
-                pnl = close_trade['pnl']
-                price_diff = close_trade.get('price_diff', exit_price - entry_price)
-                shares = close_trade.get('shares', position_size / entry_price if entry_price > 0 else 0)
-            else:
-                # Fallback: Recalculate P&L using dollar-based formula
-                price_diff = exit_price - entry_price
-                shares = position_size / entry_price if entry_price > 0 else 0
-                
-                position_type = 'LONG' if 'LONG' in open_trade['action'] else 'SHORT'
-                if position_type == 'LONG':
-                    pnl = price_diff * shares
-                else:
-                    pnl = -price_diff * shares
-            
-            # Determine success/failure
-            success = "SUCCESS" if pnl > 0 else "FAILED" if pnl < 0 else "BREAKEVEN"
-            
-            # Calculate position value (money actually invested)
-            position_value = position_size  # This is already in dollars
-            
-            # Get position type from action
-            position_type = 'LONG' if 'LONG' in open_trade['action'] else 'SHORT'
-            
-            trade_detail = {
-                'Strategy': strategy_name,
-                'Trade_Number': len(detailed_trades) + 1,
-                'Position_ID': position_id if position_id else f"T{len(detailed_trades) + 1}",
-                'Opening_Time': open_trade['timestamp'],
-                'Closing_Time': close_trade['timestamp'],
-                'Position_Type': position_type,
-                'Trade_Rule': open_trade.get('action_type', 'UNKNOWN'),  # NEW: Show which rule was applied
-                'Entry_Price': round(entry_price, 2),
-                'Exit_Price': round(exit_price, 2),
-                'Price_Difference': round(price_diff, 2),
-                'PnL': round(pnl, 2),
-                'Position_Size_USD': round(position_value, 2),
-                'Return_Percent': round((pnl / position_value * 100) if position_value > 0 else 0, 2),
-                'Holding_Period': close_trade.get('holding_period', 0),
-                'Result': success,
-                'Signal_Strength': open_trade.get('signal_strength', 0),
-                'Predicted_Price': open_trade.get('predicted_price', entry_price),
-                'Shares': round(shares, 4),  # Number of shares bought
-                'Open_Action': open_trade['action'],
-                'Close_Action': close_trade['action'],
-                'Debug_Info': f"ID:{position_id}, Rule:{open_trade.get('action_type', 'UNK')}, Type:{position_type}, Shares:{shares:.4f}, PnL:${pnl:.2f}"
-            }
-            
-            detailed_trades.append(trade_detail)
->>>>>>> 2dbd82a3f8dd7f34f49b806a4f1da3ba30ad40a2
+    
+
     
     return pd.DataFrame(detailed_trades)
 
@@ -263,21 +210,25 @@ def run_detailed_strategy_analysis():
     print("=" * 100)
     print("DETAILED XAUUSD TRADING STRATEGY ANALYSIS")
     print("Complete Trade-by-Trade History")
-    print("🆕 NEW: Conservative Single-Position Trading with Risk Management")
+    print("=" * 100)
+    print(f"🔧 GLOBAL TEST CONFIGURATION:")
+    print(f"   📊 BACKTEST_START_INDEX = {BACKTEST_START_INDEX}")
+    print(f"   📊 BACKTEST_END_INDEX = {BACKTEST_END_INDEX}")
+    print(f"   📊 Data Range: Index {BACKTEST_START_INDEX} → {BACKTEST_END_INDEX} ({BACKTEST_END_INDEX - BACKTEST_START_INDEX} periods)")
     print("=" * 100)
     print("📋 ENHANCED FEATURES:")
-    print("  🔒 SINGLE POSITION: Only one position at a time (much safer)")
+    print("  🔒 MULTI-POSITION: Up to 3 concurrent positions allowed")
     print("  ✅ SIGNAL CONFIRMATION: Requires 2+ consecutive signals")
-    print("  📈 TREND FOLLOWING: Only trades with 20-period trend direction")
+    print("  🚫 TREND FOLLOWING: DISABLED (trades in any market direction)")
     print("  💸 TIGHT STOPS: 5% stop-loss, 10% profit-taking")
     print("  ⏰ TIME LIMITS: Auto-close positions after 20 periods")
-    print("  💰 SMALL SIZES: 5-20% position sizes (much safer)")
+    print("  💰 SMALL SIZES: 5-30% position sizes per trade")
     print("  🛡️ CAPITAL PROTECTION: Max 30% capital per trade")
     print("")
     print("📊 RISK MANAGEMENT:")
-    print("  • No over-leveraging with single position limit")
+    print("  • Controlled leverage with 3-position limit")
     print("  • False signal reduction via confirmation")
-    print("  • Trend alignment prevents counter-trend trades")
+    print("  • No trend restrictions (trades any direction)")
     print("  • Quick profit-taking and loss-cutting")
     print("=" * 100)
     
@@ -336,11 +287,10 @@ def run_detailed_strategy_analysis():
             prediction_lookforward=5,
             significance_threshold=config['threshold'],
             max_position_size=config['position_size'],
+            max_concurrent_positions=3,  # NEW: Allow up to 3 concurrent positions
             device="cuda"
         )
         
-        # Run backtest with detailed tracking
-        print(f"  🔄 Starting backtest with detailed debugging...")
         
         # Add debugging variables
         debug_info = {
@@ -357,87 +307,21 @@ def run_detailed_strategy_analysis():
         
         report = strategy.run_backtest(
             data_file="datasets/Strategy_XAUUSD.csv",
-<<<<<<< HEAD
-            start_index=100,  # CHANGED: Start from index 100
-            end_index=1000,   # NEW: End at index 1000
-=======
-            start_index=1000,  # CHANGED: Start from index 100
-            end_index=5000,   # NEW: End at index 1000
->>>>>>> 2dbd82a3f8dd7f34f49b806a4f1da3ba30ad40a2
+            start_index=BACKTEST_START_INDEX,  # GLOBAL: Configurable start index
+            end_index=BACKTEST_END_INDEX,      # GLOBAL: Configurable end index
             max_trades=config['max_trades'],
             step_size=config['step_size']
         )
         
-        # Analyze what happened during backtest
-        print(f"  🔍 DEBUGGING BACKTEST EXECUTION:")
-        if strategy.trade_history:
-            opened_actions = [t for t in strategy.trade_history if 'OPEN' in t['action']]
-            closed_actions = [t for t in strategy.trade_history if 'CLOSE' in t['action']]
-            blocked_actions = [t for t in strategy.trade_history if 'BLOCKED' in t.get('action', '')]
-            
-            print(f"    Total trade records: {len(strategy.trade_history)}")
-            print(f"    OPEN actions: {len(opened_actions)}")
-            print(f"    CLOSE actions: {len(closed_actions)}")
-            print(f"    BLOCKED actions: {len(blocked_actions)} (capital constraints)")
-            print(f"    Final position: {strategy.position} (0=None, 1=Long, -1=Short)")
-            print(f"    Final capital: ${strategy.current_capital:.2f}")
-            print(f"    Active positions: {len(strategy.positions)}")
-            print(f"    Total exposure: ${strategy._get_total_exposure():.2f} ({strategy._get_total_exposure()/strategy.current_capital*100:.1f}% of capital)")
-            
-            # Check if positions are being held indefinitely
-            if len(opened_actions) > len(closed_actions):
-                print(f"    ⚠️  OPEN POSITIONS DETECTED: {len(opened_actions) - len(closed_actions)} unclosed positions")
-                print(f"    This may explain why no 'completed' trades are reported.")
-            
-            # Check for capital constraints
-            if len(blocked_actions) > 0:
-                print(f"    🚫 CAPITAL CONSTRAINTS: {len(blocked_actions)} trades blocked due to insufficient capital")
-                
-            # Show sample of trade history with rule types
-            if len(strategy.trade_history) > 0:
-                print(f"    First few actions:")
-                for i, trade in enumerate(strategy.trade_history[:5]):
-                    action = trade['action']
-                    action_type = trade.get('action_type', 'UNKNOWN')
-                    
-                    # Choose symbol based on action type
-                    if "OPEN_LONG" in action:
-                        if action_type == "ADD_LONG":
-                            symbol = "📈➕"  # Add long
-                        elif action_type == "SWITCH_TO_LONG":
-                            symbol = "🔄📈"  # Switch to long
-                        else:
-                            symbol = "📈"   # Open long
-                    elif "OPEN_SHORT" in action:
-                        if action_type == "ADD_SHORT":
-                            symbol = "📉➕"  # Add short
-                        elif action_type == "SWITCH_TO_SHORT":
-                            symbol = "🔄📉"  # Switch to short
-                        else:
-                            symbol = "📉"   # Open short
-                    elif "CLOSE" in action:
-                        symbol = "❌"    # Close
-                    elif "BLOCKED" in action:
-                        symbol = "🚫"    # Blocked
-                    else:
-                        symbol = "⏸️"     # Other
-                    
-                    print(f"      {i+1}. {symbol} {action} at ${trade['price']:.2f}")
-                    if action_type != 'UNKNOWN':
-                        print(f"          Rule: {action_type} (Strength: {trade.get('signal_strength', 0):.4f})")
-        else:
-            print(f"    ❌ NO TRADE HISTORY GENERATED!")
-            print(f"    🔍 POSSIBLE REASONS:")
-            print(f"       1. Model predictions are failing (returns None)")
-            print(f"       2. No signals meet the threshold ({config['threshold']*100:.2f}%)")
-            print(f"       3. Data loading/iteration issues")
-            print(f"       4. Hardcoded iteration limits hit (max_iterations)")
-            print(f"       5. Capital constraints preventing trades")
+        # Show the actual backtest date range being used
+        strategy.data_manager.show_backtest_range(BACKTEST_START_INDEX, BACKTEST_END_INDEX)
+        
+
         
         # Debug: Analyze why aggressive strategies have fewer trades
         signal_analysis = analyze_signal_generation(strategy, config)
         
-        # Extract detailed trade history
+        # Extract detailed trade history (will use global BACKTEST_END_INDEX)
         trade_history_df = analyze_trade_history(strategy, config['name'])
         
         if not trade_history_df.empty:
@@ -549,12 +433,7 @@ def run_detailed_strategy_analysis():
         signal_df = pd.DataFrame(signal_summary)
         print(signal_df.to_string(index=False))
         
-        print(f"\n🔍 POSSIBLE REASONS FOR FEWER AGGRESSIVE TRADES:")
-        print("1. 💰 Capital Depletion: Higher position sizes (70-80%) lose money faster")
-        print("2. 🔒 Position Blocking: Positions stay open longer, blocking new signals")
-        print("3. 📉 Poor Performance: Aggressive strategies might be less profitable")
-        print("4. 🎯 Model Limitations: Very small thresholds might not generate reliable signals")
-        print("5. ⏱️  Longer Holding Periods: Positions held longer = fewer new opportunities")
+
         
         return combined_trades, summary_df
     else:
@@ -626,6 +505,7 @@ def test_single_prediction_sequence():
         prediction_lookforward=5,
         significance_threshold=0.005,  # 0.5%
         max_position_size=0.1,
+        max_concurrent_positions=3,  # NEW: Allow up to 3 concurrent positions
         device="cuda"
     )
     
@@ -633,7 +513,7 @@ def test_single_prediction_sequence():
     strategy.data_manager.load_extended_data("datasets/Strategy_XAUUSD.csv")
     
     # Get one data point
-    data_iterator = strategy.data_manager.data_iterator(start_index=100, end_index=None, step_size=1, max_iterations=1)
+    data_iterator = strategy.data_manager.data_iterator(start_index=BACKTEST_START_INDEX, end_index=None, step_size=1, max_iterations=1)
     data_point = next(data_iterator)
     
     current_index = data_point['index']
@@ -683,6 +563,7 @@ def quick_model_data_test():
             prediction_lookforward=5,
             significance_threshold=0.05,  # 5%
             max_position_size=0.1,
+            max_concurrent_positions=3,  # NEW: Allow up to 3 concurrent positions
             device="cuda"
         )
         print("   ✅ Model loaded successfully")
@@ -694,7 +575,7 @@ def quick_model_data_test():
         
         # Test single prediction
         print("3. Testing single prediction...")
-        data_iterator = strategy.data_manager.data_iterator(start_index=100, end_index=None, step_size=1, max_iterations=1)
+        data_iterator = strategy.data_manager.data_iterator(start_index=BACKTEST_START_INDEX, end_index=None, step_size=1, max_iterations=1)
         data_point = next(data_iterator)
         
         predictions = strategy.predict_future_prices(data_point['index'])
@@ -721,25 +602,11 @@ def quick_model_data_test():
     print("="*60)
 
 def main():
-    """Main execution function"""
-    print("Choose analysis mode:")
-    print("1. Full Strategy Analysis (original functionality)")
-    print("2. Single Prediction Analysis")
-    print("3. Full Analysis + Single Prediction Analysis")
-    print("4. Quick Model & Data Test (Debug)")
-    
-    # For automation, you can change this
-    choice = input("Enter choice (1-4): ").strip()
+   
     
     combined_trades, summary_df = None, None
     
-    # Run Quick Test
-    if choice == "4":
-        quick_model_data_test()
-        return None, None
-    
-    # Run Full Strategy Analysis
-    if choice in ["1", "3"]:
+    if True:
         print("\n" + "="*100)
         print("RUNNING FULL STRATEGY ANALYSIS")
         print("="*100)
@@ -750,31 +617,8 @@ def main():
         if combined_trades is not None:
             # Display detailed trade information
             display_trade_details_by_strategy(combined_trades)
-            
-            print(f"\n{'='*120}")
-            print("✅ FULL ANALYSIS COMPLETE")
-            print("="*120)
-            print("📁 All detailed trade histories saved to: trading_results/detailed_analysis/")
-            print("📊 Files generated:")
-            print("   • Individual strategy trade logs (CSV)")
-            print("   • Combined trade history (CSV)")
-            print("   • Strategy performance comparison (CSV)")
-    
-    # Run Single Prediction Analysis
-    if choice in ["2", "3"]:
-        test_single_prediction_sequence()
-    
-    # Return appropriate results
-    if choice == "1":
         return combined_trades, summary_df
-    elif choice == "2":
-        return None, None  # Just ran single prediction
-    elif choice == "3":
-        print("\n🎯 All analysis complete! Use the generated files for further investigation.")
-        return combined_trades, summary_df
-    else:
-        print("Invalid choice.")
-        return None, None
+
 
 if __name__ == "__main__":
     trades, summary = main() 
