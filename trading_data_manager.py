@@ -231,12 +231,13 @@ class TradingDataManager:
             return self.original_datetimes[index]
         return None
     
-    def data_iterator(self, start_index=100, step_size=1, max_iterations=None):
+    def data_iterator(self, start_index=100, end_index=None, step_size=1, max_iterations=None):
         """
         Iterator for streaming data processing
         
         Args:
             start_index: Starting index for iteration
+            end_index: Ending index for iteration (None for full dataset)
             step_size: Step size for moving through data
             max_iterations: Maximum number of iterations
             
@@ -246,7 +247,13 @@ class TradingDataManager:
         current_idx = start_index
         iteration_count = 0
         
-        while current_idx < len(self.scaled_df) - 50:  # Keep some buffer
+        # Determine the actual end index
+        if end_index is not None:
+            actual_end_idx = min(end_index, len(self.scaled_df) - 10)
+        else:
+            actual_end_idx = len(self.scaled_df) - 10
+        
+        while current_idx < actual_end_idx:  # Use actual_end_idx for bounded iteration
             if max_iterations and iteration_count >= max_iterations:
                 break
                 
@@ -264,7 +271,13 @@ class TradingDataManager:
             current_idx += step_size
             iteration_count += 1
     
-    def create_extended_dataset(self, output_file, num_samples=10000, base_data_file="datasets/XAUUSD.csv"):
+    def get_price_at_index(self, index):
+        """Get the price at a specific index"""
+        if index < 0 or index >= len(self.original_prices):
+            return None
+        return self.original_prices[index]
+    
+    def create_extended_dataset(self, output_file, num_samples=10000, base_data_file="datasets/StrategyXAUUSD.csv"):
         """
         Create an extended dataset by augmenting existing data
         (This is a utility function to create larger datasets if needed)
