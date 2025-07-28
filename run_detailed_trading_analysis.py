@@ -28,6 +28,7 @@ def analyze_trade_history(strategy, strategy_name):
     
     detailed_trades = []
     
+<<<<<<< HEAD
     # Get the last available close price from the data (for open positions)
     last_close_price = None
     if hasattr(strategy, 'data_manager') and hasattr(strategy.data_manager, 'original_prices'):
@@ -35,6 +36,8 @@ def analyze_trade_history(strategy, strategy_name):
             last_close_price = strategy.data_manager.original_prices[-1]
             print(f"  📊 Last available close price: ${last_close_price:.2f} (for open positions)")
     
+=======
+>>>>>>> 2dbd82a3f8dd7f34f49b806a4f1da3ba30ad40a2
     # Match opening and closing trades by position ID (NEW: Multiple position support)
     for i, open_trade in open_trades.iterrows():
         # Extract position ID from action (e.g., "OPEN_LONG_P1" -> "P1")
@@ -44,6 +47,19 @@ def analyze_trade_history(strategy, strategy_name):
             # Fallback: extract from action string
             action_parts = open_trade['action'].split('_')
             position_id = action_parts[-1] if len(action_parts) > 2 else None
+<<<<<<< HEAD
+=======
+        
+        if position_id:
+            # Find corresponding close trade with same position ID
+            close_trade_candidates = close_trades[
+                (close_trades.index > i) & 
+                (close_trades['action'].str.contains(position_id, na=False))
+            ]
+        else:
+            # Fallback to old logic for compatibility
+            close_trade_candidates = close_trades[close_trades.index > i]
+>>>>>>> 2dbd82a3f8dd7f34f49b806a4f1da3ba30ad40a2
         
         if position_id:
             # Find corresponding close trade with same position ID
@@ -58,6 +74,7 @@ def analyze_trade_history(strategy, strategy_name):
         # Check if we found a proper close trade
         if len(close_trade_candidates) > 0:
             close_trade = close_trade_candidates.iloc[0]
+<<<<<<< HEAD
             exit_price = close_trade['price']
             closing_time = close_trade['timestamp']
             is_open_position = False
@@ -135,6 +152,67 @@ def analyze_trade_history(strategy, strategy_name):
         }
         
         detailed_trades.append(trade_detail)
+=======
+            
+            # Calculate trade details
+            entry_price = open_trade.get('entry_price', open_trade['price'])
+            exit_price = close_trade['price']
+            
+            # Get the correct position size (NEW: Multiple position support)
+            position_size = open_trade.get('position_size', 
+                                         close_trade.get('position_size', 0))
+            
+            # Use the P&L from close trade if available (NEW: More accurate)
+            if 'pnl' in close_trade:
+                pnl = close_trade['pnl']
+                price_diff = close_trade.get('price_diff', exit_price - entry_price)
+                shares = close_trade.get('shares', position_size / entry_price if entry_price > 0 else 0)
+            else:
+                # Fallback: Recalculate P&L using dollar-based formula
+                price_diff = exit_price - entry_price
+                shares = position_size / entry_price if entry_price > 0 else 0
+                
+                position_type = 'LONG' if 'LONG' in open_trade['action'] else 'SHORT'
+                if position_type == 'LONG':
+                    pnl = price_diff * shares
+                else:
+                    pnl = -price_diff * shares
+            
+            # Determine success/failure
+            success = "SUCCESS" if pnl > 0 else "FAILED" if pnl < 0 else "BREAKEVEN"
+            
+            # Calculate position value (money actually invested)
+            position_value = position_size  # This is already in dollars
+            
+            # Get position type from action
+            position_type = 'LONG' if 'LONG' in open_trade['action'] else 'SHORT'
+            
+            trade_detail = {
+                'Strategy': strategy_name,
+                'Trade_Number': len(detailed_trades) + 1,
+                'Position_ID': position_id if position_id else f"T{len(detailed_trades) + 1}",
+                'Opening_Time': open_trade['timestamp'],
+                'Closing_Time': close_trade['timestamp'],
+                'Position_Type': position_type,
+                'Trade_Rule': open_trade.get('action_type', 'UNKNOWN'),  # NEW: Show which rule was applied
+                'Entry_Price': round(entry_price, 2),
+                'Exit_Price': round(exit_price, 2),
+                'Price_Difference': round(price_diff, 2),
+                'PnL': round(pnl, 2),
+                'Position_Size_USD': round(position_value, 2),
+                'Return_Percent': round((pnl / position_value * 100) if position_value > 0 else 0, 2),
+                'Holding_Period': close_trade.get('holding_period', 0),
+                'Result': success,
+                'Signal_Strength': open_trade.get('signal_strength', 0),
+                'Predicted_Price': open_trade.get('predicted_price', entry_price),
+                'Shares': round(shares, 4),  # Number of shares bought
+                'Open_Action': open_trade['action'],
+                'Close_Action': close_trade['action'],
+                'Debug_Info': f"ID:{position_id}, Rule:{open_trade.get('action_type', 'UNK')}, Type:{position_type}, Shares:{shares:.4f}, PnL:${pnl:.2f}"
+            }
+            
+            detailed_trades.append(trade_detail)
+>>>>>>> 2dbd82a3f8dd7f34f49b806a4f1da3ba30ad40a2
     
     return pd.DataFrame(detailed_trades)
 
@@ -279,8 +357,13 @@ def run_detailed_strategy_analysis():
         
         report = strategy.run_backtest(
             data_file="datasets/Strategy_XAUUSD.csv",
+<<<<<<< HEAD
             start_index=100,  # CHANGED: Start from index 100
             end_index=1000,   # NEW: End at index 1000
+=======
+            start_index=1000,  # CHANGED: Start from index 100
+            end_index=5000,   # NEW: End at index 1000
+>>>>>>> 2dbd82a3f8dd7f34f49b806a4f1da3ba30ad40a2
             max_trades=config['max_trades'],
             step_size=config['step_size']
         )
