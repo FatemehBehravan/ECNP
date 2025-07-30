@@ -16,8 +16,8 @@ from trading_strategy_complete import XAUUSDTradingStrategy
 # ===================================================================
 # 🔧 GLOBAL TEST CONFIGURATION - CHANGE THESE FOR DIFFERENT TESTS
 # ===================================================================
-BACKTEST_START_INDEX = 1000   
-BACKTEST_END_INDEX = 3000    
+BACKTEST_START_INDEX = 100   
+BACKTEST_END_INDEX = 1000    
 
 
 def analyze_trade_history(strategy, strategy_name, end_index=None):
@@ -218,18 +218,18 @@ def run_detailed_strategy_analysis():
     print("=" * 100)
     print("📋 ENHANCED FEATURES:")
     print("  🔒 MULTI-POSITION: Up to 3 concurrent positions allowed")
-    print("  ✅ SIGNAL CONFIRMATION: Requires 2+ consecutive signals")
+    print("  📈 DIRECT SIGNALS: Immediate signal execution (no confirmation delay)")
     print("  🚫 TREND FOLLOWING: DISABLED (trades in any market direction)")
-    print("  💸 TIGHT STOPS: 5% stop-loss, 10% profit-taking")
-    print("  ⏰ TIME LIMITS: Auto-close positions after 20 periods")
-    print("  💰 SMALL SIZES: 5-30% position sizes per trade")
+    print("  💸 TIGHT STOPS: 1% stop-loss, 2% profit-taking")
+    print("  ⏰ TIME LIMITS: DISABLED (no auto-close based on time)")
+    print("  💰 FLEXIBLE SIZES: Dynamic position sizes per trade")
     print("  🛡️ CAPITAL PROTECTION: Max 30% capital per trade")
     print("")
     print("📊 RISK MANAGEMENT:")
     print("  • Controlled leverage with 3-position limit")
-    print("  • False signal reduction via confirmation")
+    print("  • Independent positions (no signal interference)")
+    print("  • Positions close ONLY on P&L targets (1% stop, 2% profit)")
     print("  • No trend restrictions (trades any direction)")
-    print("  • Quick profit-taking and loss-cutting")
     print("=" * 100)
     
     # Strategy configurations (UPDATED: Realistic thresholds based on model predictions)
