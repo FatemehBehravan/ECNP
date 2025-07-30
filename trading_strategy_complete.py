@@ -14,6 +14,19 @@ from utilFiles.save_load_files_models import load_model
 from utilFiles.get_args import the_args
 from models.shared_model_detail import *
 
+# ===================================================================
+# 🔧 GLOBAL DATASET CONFIGURATION - CHANGE THIS TO SWITCH DATASETS
+# ===================================================================
+
+# Global dataset path - CHANGE THIS TO SWITCH DATASETS
+DATASET_FILE_PATH = "/content/datasets/UpTrendStrategy_XAUUSD.csv"
+
+# Alternative options (uncomment the one you want):
+# DATASET_FILE_PATH = "/content/datasets/Strategy_XAUUSD.csv"              # Original (no bias)
+# DATASET_FILE_PATH = "/content/datasets/UpTrendStrategy_XAUUSD.csv"       # UpTrend bias (more BUY)
+# DATASET_FILE_PATH = "/content/datasets/DownTrendStrategy_XAUUSD.csv"     # DownTrend bias (more SELL)
+# DATASET_FILE_PATH = "/content/datasets/RangeStrategy_XAUUSD.csv"         # Range bias (neutral)
+
 class XAUUSDTradingStrategy:
     """
     Complete trading strategy for XAUUSD forecasting using Evidential Neural Process
@@ -188,30 +201,7 @@ class XAUUSDTradingStrategy:
             return signal, strength, predicted_price
         
         return 0, 0.0, predicted_price
-    
-    # def _get_trend_direction(self, current_index):
-    #     """
-    #     Simple trend detection: compare current price to price 20 periods ago
-    #     Returns: 1 (uptrend), -1 (downtrend), 0 (sideways)
-    #     DISABLED: Trend following functionality has been disabled
-    #     """
-    #     try:
-    #         if current_index < 20:
-    #             return 0  # Not enough data
-    #         
-    #         current_price = self.data_manager.get_price_at_index(current_index)
-    #         past_price = self.data_manager.get_price_at_index(current_index - 20)
-    #         
-    #         trend_change = (current_price - past_price) / past_price
-    #         
-    #         if trend_change > 0.02:  # 2% uptrend
-    #             return 1
-    #         elif trend_change < -0.02:  # 2% downtrend
-    #             return -1
-    #         else:
-    #             return 0  # Sideways
-    #     except:
-    #         return 0  # Default to no trend if error
+
     
     def _update_legacy_position_status(self):
         """Update legacy position variables for compatibility"""
@@ -435,7 +425,7 @@ class XAUUSDTradingStrategy:
         })
     
     def run_backtest(self, 
-                     data_file="datasets/Strategy_XAUUSD.csv", 
+                     data_file=DATASET_FILE_PATH, 
                      start_index=100, 
                      end_index=None,
                      max_trades=1000,
@@ -726,7 +716,7 @@ def main():
     
     # Run backtesting
     report = strategy.run_backtest(
-        data_file="datasets/Strategy_XAUUSD.csv",
+        data_file=DATASET_FILE_PATH,
         start_index=100,
         max_trades=250,  # Increased for comprehensive testing
         step_size=2   # Check every 2 time steps for more opportunities

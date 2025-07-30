@@ -16,6 +16,20 @@ from trading_strategy_complete import XAUUSDTradingStrategy
 # ===================================================================
 # 🔧 GLOBAL TEST CONFIGURATION - CHANGE THESE FOR DIFFERENT TESTS
 # ===================================================================
+
+# Global dataset path - CHANGE THIS TO SWITCH DATASETS
+DATASET_FILE_PATH = "/content/datasets/UpTrendStrategy_XAUUSD.csv"
+
+# Alternative options (uncomment the one you want):
+# DATASET_FILE_PATH = "/content/datasets/Strategy_XAUUSD.csv"              # Original (no bias)
+# DATASET_FILE_PATH = "/content/datasets/UpTrendStrategy_XAUUSD.csv"       # UpTrend bias (more BUY)
+# DATASET_FILE_PATH = "/content/datasets/DownTrendStrategy_XAUUSD.csv"     # DownTrend bias (more SELL)
+# DATASET_FILE_PATH = "/content/datasets/RangeStrategy_XAUUSD.csv"         # Range bias (neutral)
+
+
+# ===================================================================
+# 🔧 GLOBAL TEST CONFIGURATION - CHANGE THESE FOR DIFFERENT TESTS
+# ===================================================================
 BACKTEST_START_INDEX = 100   
 BACKTEST_END_INDEX = 1000    
 
@@ -306,7 +320,7 @@ def run_detailed_strategy_analysis():
         }
         
         report = strategy.run_backtest(
-            data_file="datasets/Strategy_XAUUSD.csv",
+            data_file=DATASET_FILE_PATH,
             start_index=BACKTEST_START_INDEX,  # GLOBAL: Configurable start index
             end_index=BACKTEST_END_INDEX,      # GLOBAL: Configurable end index
             max_trades=config['max_trades'],
@@ -510,7 +524,7 @@ def test_single_prediction_sequence():
     )
     
     # Load data into the data manager (CRITICAL: This was missing!)
-    strategy.data_manager.load_extended_data("datasets/Strategy_XAUUSD.csv")
+    strategy.data_manager.load_extended_data(DATASET_FILE_PATH)
     
     # Get one data point
     data_iterator = strategy.data_manager.data_iterator(start_index=BACKTEST_START_INDEX, end_index=None, step_size=1, max_iterations=1)
@@ -570,7 +584,7 @@ def quick_model_data_test():
         
         # Test data loading
         print("2. Testing data loading...")
-        df = strategy.data_manager.load_extended_data("datasets/Strategy_XAUUSD.csv")
+        df = strategy.data_manager.load_extended_data(DATASET_FILE_PATH)
         print(f"   ✅ Data loaded: {len(df)} records")
         
         # Test single prediction
