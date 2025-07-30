@@ -18,20 +18,20 @@ from trading_strategy_complete import XAUUSDTradingStrategy
 # ===================================================================
 
 # Global dataset path - CHANGE THIS TO SWITCH DATASETS
-DATASET_FILE_PATH = "/content/datasets/UpTrendStrategy_XAUUSD.csv"
+DATASET_FILE_PATH = "datasets/UpTrendStrategy_XAUUSD.csv"
 
 # Alternative options (uncomment the one you want):
-# DATASET_FILE_PATH = "/content/datasets/Strategy_XAUUSD.csv"              # Original (no bias)
-# DATASET_FILE_PATH = "/content/datasets/UpTrendStrategy_XAUUSD.csv"       # UpTrend bias (more BUY)
-# DATASET_FILE_PATH = "/content/datasets/DownTrendStrategy_XAUUSD.csv"     # DownTrend bias (more SELL)
-# DATASET_FILE_PATH = "/content/datasets/RangeStrategy_XAUUSD.csv"         # Range bias (neutral)
+# DATASET_FILE_PATH = "datasets/Strategy_XAUUSD.csv"              # Original (no bias)
+# DATASET_FILE_PATH = "datasets/UpTrendStrategy_XAUUSD.csv"       # UpTrend bias (more BUY)
+# DATASET_FILE_PATH = "datasets/DownTrendStrategy_XAUUSD.csv"     # DownTrend bias (more SELL)
+# DATASET_FILE_PATH = "datasets/RangeStrategy_XAUUSD.csv"         # Range bias (neutral)
 
 
 # ===================================================================
 # 🔧 GLOBAL TEST CONFIGURATION - CHANGE THESE FOR DIFFERENT TESTS
 # ===================================================================
-BACKTEST_START_INDEX = 100   
-BACKTEST_END_INDEX = 1000    
+BACKTEST_START_INDEX = 1000   
+BACKTEST_END_INDEX = 3000    
 
 
 def analyze_trade_history(strategy, strategy_name, end_index=None):
@@ -504,62 +504,6 @@ def display_trade_details_by_strategy(combined_trades):
         print(f"  Largest Loss: ${max_loss:.2f}")
 
 
-
-def test_single_prediction_sequence():
-    """
-    Test a single prediction sequence to see exactly what the model predicts
-    """
-    print(f"\n{'='*100}")
-    print("🔬 DETAILED SINGLE PREDICTION ANALYSIS")
-    print("="*100)
-    
-    strategy = XAUUSDTradingStrategy(
-        model_path="CNP-model-save-name/saved_models/model_4000.pth",
-        initial_capital=1000.0,
-        prediction_lookforward=5,
-        significance_threshold=0.005,  # 0.5%
-        max_position_size=0.1,
-        max_concurrent_positions=3,  # NEW: Allow up to 3 concurrent positions
-        device="cuda"
-    )
-    
-    # Load data into the data manager (CRITICAL: This was missing!)
-    strategy.data_manager.load_extended_data(DATASET_FILE_PATH)
-    
-    # Get one data point
-    data_iterator = strategy.data_manager.data_iterator(start_index=BACKTEST_START_INDEX, end_index=None, step_size=1, max_iterations=1)
-    data_point = next(data_iterator)
-    
-    current_index = data_point['index']
-    current_price = data_point['current_price']
-    
-    print(f"Testing at index: {current_index}")
-    print(f"Current price: ${current_price:.2f}")
-    
-    # Get detailed predictions
-    predictions = strategy.predict_future_prices(current_index)
-    
-    if predictions is not None:
-        print(f"\n📈 RAW MODEL PREDICTIONS:")
-        for i, pred_price in enumerate(predictions['predictions'][:10]):
-            change = (pred_price - current_price) / current_price * 100
-            print(f"  Step {i:2d}: ${pred_price:8.2f} (Change: {change:+6.3f}%)")
-        
-        # Test different thresholds on this single prediction
-        lookforward_price = predictions['predictions'][strategy.prediction_lookforward]
-        actual_change = (lookforward_price - current_price) / current_price
-        
-        print(f"\n🎯 THRESHOLD TESTING (Lookforward {strategy.prediction_lookforward}):")
-        print(f"   Predicted price: ${lookforward_price:.2f}")
-        print(f"   Actual change: {actual_change*100:.4f}%")
-        
-        test_thresholds = [0.02, 0.05, 0.07, 0.10, 0.15, 0.20, 0.25, 0.30]
-        for thresh in test_thresholds:
-            would_signal = abs(actual_change) > thresh
-            signal_type = "BUY" if actual_change > 0 else "SELL" if actual_change < 0 else "HOLD"
-            status = "✅ SIGNAL" if would_signal else "❌ NO SIGNAL"
-            print(f"   {thresh*100:5.2f}% threshold: {status} ({signal_type})")
-
 def quick_model_data_test():
     """
     Quick test to verify model and data are working before running full analysis
@@ -577,7 +521,7 @@ def quick_model_data_test():
             prediction_lookforward=5,
             significance_threshold=0.05,  # 5%
             max_position_size=0.1,
-            max_concurrent_positions=3,  # NEW: Allow up to 3 concurrent positions
+            max_concurrent_positions=5,  # NEW: Allow up to 3 concurrent positions
             device="cuda"
         )
         print("   ✅ Model loaded successfully")

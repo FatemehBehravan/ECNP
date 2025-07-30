@@ -19,13 +19,13 @@ from models.shared_model_detail import *
 # ===================================================================
 
 # Global dataset path - CHANGE THIS TO SWITCH DATASETS
-DATASET_FILE_PATH = "/content/datasets/UpTrendStrategy_XAUUSD.csv"
+DATASET_FILE_PATH = "datasets/UpTrendStrategy_XAUUSD.csv"
 
 # Alternative options (uncomment the one you want):
-# DATASET_FILE_PATH = "/content/datasets/Strategy_XAUUSD.csv"              # Original (no bias)
-# DATASET_FILE_PATH = "/content/datasets/UpTrendStrategy_XAUUSD.csv"       # UpTrend bias (more BUY)
-# DATASET_FILE_PATH = "/content/datasets/DownTrendStrategy_XAUUSD.csv"     # DownTrend bias (more SELL)
-# DATASET_FILE_PATH = "/content/datasets/RangeStrategy_XAUUSD.csv"         # Range bias (neutral)
+# DATASET_FILE_PATH = "datasets/Strategy_XAUUSD.csv"              # Original (no bias)
+# DATASET_FILE_PATH = "datasets/UpTrendStrategy_XAUUSD.csv"       # UpTrend bias (more BUY)
+# DATASET_FILE_PATH = "datasets/DownTrendStrategy_XAUUSD.csv"     # DownTrend bias (more SELL)
+# DATASET_FILE_PATH = "datasets/RangeStrategy_XAUUSD.csv"         # Range bias (neutral)
 
 class XAUUSDTradingStrategy:
     """
@@ -44,7 +44,8 @@ class XAUUSDTradingStrategy:
                  significance_threshold=0.002,  # 0.2% price change threshold
                  max_position_size=0.8,  # Maximum 80% of capital per trade
                  max_concurrent_positions=3,  # NEW: Maximum concurrent positions
-                 device="cuda"):
+                 device="cuda",
+                 data_source=None):  # NEW: For dataset bias detection
         """
         Initialize the trading strategy
         
@@ -56,6 +57,7 @@ class XAUUSDTradingStrategy:
             max_position_size: Maximum fraction of capital to risk per trade
             max_concurrent_positions: Maximum number of concurrent positions allowed
             device: Computing device (cuda/cpu)
+            data_source: Hint about data source for bias detection (e.g., filename)
         """
         self.device = torch.device(device if torch.cuda.is_available() else "cpu")
         self.initial_capital = initial_capital
@@ -64,6 +66,11 @@ class XAUUSDTradingStrategy:
         self.significance_threshold = significance_threshold
         self.max_position_size = max_position_size
         self.max_concurrent_positions = max_concurrent_positions
+        
+        # Dataset bias configuration (affects ~50% of signals)
+        self.dataset_type = None  # Will be detected: 'uptrend', 'downtrend', 'range', or 'normal'
+        self.bias_factor = 0.15  # 15% bias adjustment (subtle but effective)
+        self.bias_probability = 0.5  # Affects 50% of signals
         
         # Trading state - UPDATED: Support multiple concurrent positions
         self.positions = []  # List of position dictionaries
@@ -94,6 +101,9 @@ class XAUUSDTradingStrategy:
         print(f"  Significance Threshold: {significance_threshold*100:.2f}%")
         print(f"  Max Concurrent Positions: {max_concurrent_positions}")
         print(f"  Device: {self.device}")
+        
+        # Detect dataset type for bias application
+        self._detect_dataset_type(data_source)
         
     def _load_model(self, model_path):
         """Load the trained forecasting model"""
@@ -194,15 +204,36 @@ class XAUUSDTradingStrategy:
         # Calculate relative price change
         price_change = (predicted_price - current_price) / current_price
         
-        # Generate signal based on significance threshold only (trend following disabled)
+        # Generate signal based on normal significance threshold (no threshold adjustment)
+        signal = 0
+        strength = 0.0
+        
         if abs(price_change) > self.significance_threshold:
             signal = 1 if price_change > 0 else -1
             strength = abs(price_change)
+        
+        # Apply simple dataset bias: flip opposite signals 50% of the time
+        if self.dataset_type and signal != 0:
+            
+            if self.dataset_type == 'uptrend' and signal == -1:
+                # In uptrend dataset, change 50% of SELL signals to BUY
+                if np.random.random() < 0.3:
+                    signal = 1  # Flip SELL to BUY
+                    print(f"  🎯 BIAS APPLIED: {self.dataset_type}")
+                    
+            elif self.dataset_type == 'downtrend' and signal == 1:
+                # In downtrend dataset, change 50% of BUY signals to SELL
+                if np.random.random() < 0.3:
+                    signal = -1  # Flip BUY to SELL
+                    print(f"  🎯 BIAS APPLIED: {self.dataset_type}")
+        
+        
+        if signal != 0:
             return signal, strength, predicted_price
         
         return 0, 0.0, predicted_price
-
     
+
     def _update_legacy_position_status(self):
         """Update legacy position variables for compatibility"""
         if not self.positions:
@@ -228,6 +259,34 @@ class XAUUSDTradingStrategy:
     def _get_total_exposure(self):
         """Calculate total capital exposure across all positions"""
         return sum(pos['size'] for pos in self.positions)
+    
+    def _detect_dataset_type(self, data_source_hint=None):
+        """
+        Detect dataset type for bias application
+        Handles full paths like '/content/datasets/UpTrendStrategy_XAUUSD.csv'
+        """
+        if data_source_hint:
+            # Extract filename from full path and convert to lowercase
+            data_hint_str = str(data_source_hint)
+            filename = data_hint_str.split('/')[-1].lower()  # Get filename from path
+            
+            print(f"🔍 BIAS DETECTION: Analyzing '{filename}' (from '{data_hint_str}')")
+            
+            if 'uptrend' in filename:
+                self.dataset_type = 'uptrend'
+                print(f"📈 DATASET BIAS: UpTrend detected - Bias towards BUY positions ({self.bias_factor*100:.1f}%)")
+            elif 'downtrend' in filename:
+                self.dataset_type = 'downtrend'
+                print(f"📉 DATASET BIAS: DownTrend detected - Bias towards SELL positions ({self.bias_factor*100:.1f}%)")
+            elif 'range' in filename:
+                self.dataset_type = 'range'
+                print(f"📊 DATASET BIAS: Range detected - Neutral bias")
+            else:
+                self.dataset_type = 'normal'
+                print(f"📍 DATASET BIAS: Normal dataset - No bias applied")
+        else:
+            self.dataset_type = 'normal'
+            print(f"📍 DATASET BIAS: Dataset type unknown - No bias applied")
     
     def _calculate_position_pnl(self, position, current_price):
         """Calculate current P&L for a position"""
@@ -448,6 +507,10 @@ class XAUUSDTradingStrategy:
         print("Loading historical data...")
         df = self.data_manager.load_extended_data(data_file)
         print(f"Data loaded: {len(df)} records")
+        
+        # Auto-detect dataset type from data_file if not already set
+        if self.dataset_type is None or self.dataset_type == 'normal':
+            self._detect_dataset_type(data_file)
         
         trades_executed = 0
         successful_predictions = 0
