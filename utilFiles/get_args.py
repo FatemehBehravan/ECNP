@@ -2,13 +2,13 @@ def the_args():
     import argparse
     parser = argparse.ArgumentParser()
 
-    parser.add_argument('-input_size', '--input_size', type=int, default=13, help="number of features --> Context_X + Context_Y (12 technical indicators + 1 target)")
-    parser.add_argument('-output_size', '--output_size', type=int, default=12, help="number of features -->Target_X (12 technical indicators)")
+    parser.add_argument('-input_size', '--input_size', type=int, default=11, help="number of features --> Context_X + Context_Y (12 technical indicators + 1 target)")
+    parser.add_argument('-output_size', '--output_size', type=int, default=10, help="number of features -->Target_X (12 technical indicators)")
     parser.add_argument('-lstm_layers', '--lstm_layers', type=int, default=2, help='number of lstm layer --> for reduce complexity')
     parser.add_argument('-lstm_hidden_size', '--lstm_hidden_size', type=int, default=64, help='for small dayasets')
     parser.add_argument('-lstm_dropout', '--lstm_dropout', type=int, default=0.3, help='forbidden overfit')
     parser.add_argument('-channels', '--channels', type=int, default=1, help='only close')
-    parser.add_argument('-x_size', '--x_size', type=int, default=12, help='x_size (number of input features with technical indicators)')
+    parser.add_argument('-x_size', '--x_size', type=int, default=10, help='x_size (number of input features with technical indicators)')
     parser.add_argument('-y_size', '--y_size', type=int, default=1, help='y_size')
     
     
