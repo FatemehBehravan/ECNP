@@ -74,7 +74,7 @@ model = Transformer_Evd_Model(latent_encoder_sizes,
                       ).to(device)
 
 # Fixed learning rate without scheduler to prevent collapse to zero
-optimizer = optim.Adam(model.parameters(), lr=0.0001, weight_decay=1e-6)  # Fixed LR without scheduler
+optimizer = optim.Adam(model.parameters(), lr=0.001, weight_decay=1e-6)  # Fixed LR without scheduler
 # scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode='min', factor=0.5, patience=200, verbose=True)
 
 # model = load_model("/home/deep/Desktop/IMPLEMENTATION/MAY/ANPHeterogenous/May18/saved_models/model_9000.pth")
@@ -368,7 +368,7 @@ def train_1d_regression(tr_time_end=0, tr_time_start=0):
         if isinstance(result, tuple):
             # CV loss returns (cv_loss, cv_logging)
             train_loss, cv_logging = result
-            if tr_index % 1000 == 0:  # Print CV stats every 100 iterations
+            if tr_index % 100 == 0:  # Print CV stats every 100 iterations
                 print(f"Iteration {tr_index}: CV Loss: {train_loss:.4f}, Fold Std: {cv_logging['std_fold_loss']:.4f}")
                 print(f"  Fold Losses: {[f'{x:.3f}' for x in cv_logging['fold_losses']]}")
                 print(f"  Mean NLL: {cv_logging['mean_fold_nll']:.4f}, Mean MSE: {cv_logging['mean_fold_mse']:.4f}")
@@ -381,13 +381,13 @@ def train_1d_regression(tr_time_end=0, tr_time_start=0):
         
             
         # Print learning rate every 1000 iterations
-        if tr_index % 1000 == 0:
+        if tr_index % 100 == 0:
             current_lr = optimizer.param_groups[0]['lr']
             print(f"  Current Learning Rate: {current_lr:.8f}")
             if current_lr < 1e-8:
                 print(f"  WARNING: Learning rate too low! Resetting to 0.0001")
                 for param_group in optimizer.param_groups:
-                    param_group['lr'] = 0.0001
+                    param_group['lr'] = 0.001
 
         # Test phase
         save_tracker_val = tr_index % args.test_1d_every
