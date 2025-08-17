@@ -119,6 +119,7 @@ def test_model_and_save_results(epoch, tr_time_taken = 0):
     av_alea = 0
     total_emse = 0
     total_r2 = 0
+    total_std_fold_loss = 0
 
     test_time_start = time.time()
 
@@ -164,6 +165,13 @@ def test_model_and_save_results(epoch, tr_time_taken = 0):
             metrics = calculate_evidential_metrics(target_y, mu, v, alpha, beta)
             total_emse += metrics['emse']
             total_r2 += metrics['r2']
+            
+            # Calculate cross-validation metrics for this batch
+            from trainingHelpers.lossFunctions import calculate_cross_validation_loss_simple
+            cv_loss, cv_logging = calculate_cross_validation_loss_simple(
+                y=target_y, mu=mu, v=v, alpha=alpha, beta=beta, k=5, lambda_coef=1.0
+            )
+            total_std_fold_loss += cv_logging['std_fold_loss']
 
 
 
@@ -173,21 +181,23 @@ def test_model_and_save_results(epoch, tr_time_taken = 0):
     av_alea /= num_test_tasks
     average_emse = total_emse / num_test_tasks
     average_r2 = total_r2 / num_test_tasks
+    average_std_fold_loss = total_std_fold_loss / num_test_tasks
 
-    print("Epoch: {}, test_loss: {}, EMSE: {:.6f}, R²: {:.6f}".format(
+    print("Epoch: {}, test_loss: {}, EMSE: {:.6f}, R²: {:.6f}, CV_Std: {:.6f}".format(
         epoch, 
         average_test_loss.detach().cpu().numpy().item(),
         average_emse,
-        average_r2
+        average_r2,
+        average_std_fold_loss
     ))
 
     test_time_taken = time.time() - test_time_start
 
-    keys = ["Epoch", "Test Loss", "Test Log Likelihood", "Epistemic", "Aleatoric", "EMSE", "R²", "Train Time", "Test Time"]
+    keys =["Epoch", "Test Loss", "Test Log Likelihood", "Epistemic", "Aleatoric", "EMSE", "R²", "CV_Std_Fold_Loss", "Train Time", "Test Time"]
     values = [epoch]
     values += [float(x.cpu().numpy()) for x in [average_test_loss, average_log_likelihood]]
     values += [float(x.cpu().numpy()) for x in [av_epis, av_alea]]
-    values += [average_emse, average_r2]
+    values += [average_emse, average_r2, average_std_fold_loss]
     values += [tr_time_taken, test_time_taken]
 
     print("keys: ", keys)
@@ -302,7 +312,7 @@ def train_1d_regression(tr_time_end=0, tr_time_start=0):
                 for j in range(y_len):
                     target_y[i, j, y_dim_3[i, j], y_dim_4[i, j]] += args.outlier_val  # noise_val
 
-        result = one_iteration_training(query, target_y, use_cv_loss=False)  # Set to True to enable CV loss
+        result = one_iteration_training(query, target_y, use_cv_loss=True)  # Set to True to enable CV loss
         
         # Handle different return types
         if isinstance(result, tuple):
