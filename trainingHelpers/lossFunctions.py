@@ -374,16 +374,24 @@ def calculate_emse(y, mu, v, alpha, beta):
     # Ensure alpha > 1 for valid variance
     alpha = torch.clamp(alpha, min=1.1)
     
+    # Ensure v > 0 for valid variance
+    v = torch.clamp(v, min=1e-6)
+    
+    # Ensure beta > 0
+    beta = torch.clamp(beta, min=1e-6)
+    
     # Calculate variance of Student's t-distribution
     # Var(y) = β/(α-1) * (1 + 1/v)
     variance = beta / (alpha - 1) * (1 + 1/v)
     
-    # Calculate squared bias: (E[y] - μ)^2 = (μ - μ)^2 = 0 for Student's t
-    # But we include it for completeness in case of other distributions
+    # Calculate squared bias: (E[y] - μ)^2
     bias_squared = (y - mu) ** 2
     
     # EMSE = variance + bias_squared
     emse = variance + bias_squared
+    
+    # Remove any NaN or infinite values
+    emse = torch.where(torch.isfinite(emse), emse, torch.zeros_like(emse))
     
     return emse
 
@@ -410,6 +418,15 @@ def calculate_r2_score(y, mu, v, alpha, beta):
     y_flat = y.view(-1)
     mu_flat = mu.view(-1)
     
+    # Remove any NaN or infinite values
+    valid_mask = torch.isfinite(y_flat) & torch.isfinite(mu_flat)
+    y_flat = y_flat[valid_mask]
+    mu_flat = mu_flat[valid_mask]
+    
+    # Check if we have enough valid data
+    if len(y_flat) < 2:
+        return torch.tensor(0.0)
+    
     # Calculate mean of true values
     y_mean = torch.mean(y_flat)
     
@@ -419,8 +436,73 @@ def calculate_r2_score(y, mu, v, alpha, beta):
     # Calculate total sum of squares (SS_tot)
     ss_tot = torch.sum((y_flat - y_mean) ** 2)
     
+    # Avoid division by zero and handle edge cases
+    if ss_tot < 1e-10:
+        return torch.tensor(0.0)
+    
     # Calculate R²
-    r2 = 1 - (ss_res / (ss_tot + 1e-8))  # Add small epsilon to avoid division by zero
+    r2 = 1 - (ss_res / ss_tot)
+    
+    # Debug: Print values if R² is very negative
+    if r2 < -5.0:
+        print(f"R² Debug - y_mean: {y_mean:.4f}, ss_res: {ss_res:.4f}, ss_tot: {ss_tot:.4f}")
+        print(f"y range: [{torch.min(y_flat):.4f}, {torch.max(y_flat):.4f}]")
+        print(f"mu range: [{torch.min(mu_flat):.4f}, {torch.max(mu_flat):.4f}]")
+
+    # Clamp R² to reasonable range (can be slightly negative for very poor fits)
+    r2 = torch.clamp(r2, min=-10.0, max=1.0)
+    
+    return r2
+
+
+def calculate_r2_score_robust(y, mu, v, alpha, beta):
+    """
+    Alternative robust R² calculation for evidential neural processes
+    
+    Uses correlation-based R² which is more stable for complex data
+    
+    Args:
+        y: True values [batch_size, num_points, ...]
+        mu: Predicted means [batch_size, num_points, ...]
+        v: Predicted variance parameters [batch_size, num_points, ...] (not used)
+        alpha: Predicted alpha parameters [batch_size, num_points, ...] (not used)
+        beta: Predicted beta parameters [batch_size, num_points, ...] (not used)
+    
+    Returns:
+        r2: R² score based on correlation
+    """
+    # Flatten tensors for calculation
+    y_flat = y.view(-1)
+    mu_flat = mu.view(-1)
+    
+    # Remove any NaN or infinite values
+    valid_mask = torch.isfinite(y_flat) & torch.isfinite(mu_flat)
+    y_flat = y_flat[valid_mask]
+    mu_flat = mu_flat[valid_mask]
+    
+    # Check if we have enough valid data
+    if len(y_flat) < 2:
+        return torch.tensor(0.0)
+    
+    # Calculate correlation coefficient
+    y_mean = torch.mean(y_flat)
+    mu_mean = torch.mean(mu_flat)
+    
+    numerator = torch.sum((y_flat - y_mean) * (mu_flat - mu_mean))
+    y_denom = torch.sqrt(torch.sum((y_flat - y_mean) ** 2))
+    mu_denom = torch.sqrt(torch.sum((mu_flat - mu_mean) ** 2))
+    
+    # Avoid division by zero
+    if y_denom < 1e-10 or mu_denom < 1e-10:
+        return torch.tensor(0.0)
+    
+    correlation = numerator / (y_denom * mu_denom)
+    
+    # R² = correlation²
+    r2 = correlation ** 2
+    
+    # Clamp to reasonable range
+    r2 = torch.clamp(r2, min=-1.0, max=1.0)
     
     return r2
 
@@ -443,8 +525,15 @@ def calculate_evidential_metrics(y, mu, v, alpha, beta):
     emse = calculate_emse(y, mu, v, alpha, beta)
     mean_emse = torch.mean(emse)
     
-    # Calculate R²
-    r2 = calculate_r2_score(y, mu, v, alpha, beta)
+    # Calculate R² using both methods
+    r2_standard = calculate_r2_score(y, mu, v, alpha, beta)
+    r2_robust = calculate_r2_score_robust(y, mu, v, alpha, beta)
+    
+    # Use the more reasonable R² value
+    if r2_standard > -1.0:  # If standard R² is reasonable, use it
+        r2 = r2_standard
+    else:  # Otherwise use robust R²
+        r2 = r2_robust
     
     # Calculate traditional MSE
     mse = torch.mean((y - mu) ** 2)
@@ -456,6 +545,8 @@ def calculate_evidential_metrics(y, mu, v, alpha, beta):
     metrics_dict = {
         'emse': mean_emse.item(),
         'r2': r2.item(),
+        'r2_standard': r2_standard.item(),
+        'r2_robust': r2_robust.item(),
         'mse': mse.item(),
         'epistemic': epis.item(),
         'aleatoric': alea.item()

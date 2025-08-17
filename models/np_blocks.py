@@ -346,6 +346,7 @@ class ANPEvidentialDecoder(nn.Module):
         beta = self.transform_beta(x_flat)
         
         # Apply constraints
+        gamma = torch.sigmoid(gamma)
         v = torch.exp(v)
         v = torch.clamp(v, max=self._ev_dec_v_max)
         alpha = torch.exp(alpha) + 1
