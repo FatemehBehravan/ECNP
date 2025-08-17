@@ -117,6 +117,8 @@ def test_model_and_save_results(epoch, tr_time_taken = 0):
 
     av_epis = 0
     av_alea = 0
+    total_emse = 0
+    total_r2 = 0
 
     test_time_start = time.time()
 
@@ -156,6 +158,12 @@ def test_model_and_save_results(epoch, tr_time_taken = 0):
 
             av_epis += torch.mean(beta / ( v * (alpha - 1)) )
             av_alea += torch.mean(beta / (alpha - 1) )
+            
+            # Calculate EMSE and R² for this batch
+            from trainingHelpers.lossFunctions import calculate_evidential_metrics
+            metrics = calculate_evidential_metrics(target_y, mu, v, alpha, beta)
+            total_emse += metrics['emse']
+            total_r2 += metrics['r2']
 
 
 
@@ -163,15 +171,23 @@ def test_model_and_save_results(epoch, tr_time_taken = 0):
     average_log_likelihood = total_log_likelihood / num_test_tasks
     av_epis /= num_test_tasks
     av_alea /= num_test_tasks
+    average_emse = total_emse / num_test_tasks
+    average_r2 = total_r2 / num_test_tasks
 
-    print("Epoch: {}, test_loss: {}".format(epoch, average_test_loss.detach().cpu().numpy().item()))
+    print("Epoch: {}, test_loss: {}, EMSE: {:.6f}, R²: {:.6f}".format(
+        epoch, 
+        average_test_loss.detach().cpu().numpy().item(),
+        average_emse,
+        average_r2
+    ))
 
     test_time_taken = time.time() - test_time_start
 
-    keys = ["Epoch", "Test Loss", "Test Log Likelihood", "Epistemic", "Aleatoric", "Train Time", "Test Time"]
+    keys = ["Epoch", "Test Loss", "Test Log Likelihood", "Epistemic", "Aleatoric", "EMSE", "R²", "Train Time", "Test Time"]
     values = [epoch]
     values += [float(x.cpu().numpy()) for x in [average_test_loss, average_log_likelihood]]
     values += [float(x.cpu().numpy()) for x in [av_epis, av_alea]]
+    values += [average_emse, average_r2]
     values += [tr_time_taken, test_time_taken]
 
     print("keys: ", keys)
@@ -232,16 +248,39 @@ def test_model_and_save_results(epoch, tr_time_taken = 0):
 
     return average_test_loss
 
-def one_iteration_training(query, target_y):
+def one_iteration_training(query, target_y, use_cv_loss=True):
     model.train()
     model.zero_grad()
     optimizer.zero_grad()
 
     _, recons_loss, kl_loss, loss, mu, v, alpha, beta = model(query, target_y, 0)
 
-    loss.backward()
-    optimizer.step()
-    return loss.item()  # Return Train Loss
+    if use_cv_loss:
+        # Import the CV loss function
+        from trainingHelpers.lossFunctions import calculate_cross_validation_loss_simple
+        
+        # Calculate cross-validation loss with k=5
+        cv_loss, cv_logging = calculate_cross_validation_loss_simple(
+            y=target_y,
+            mu=mu,
+            v=v,
+            alpha=alpha,
+            beta=beta,
+            k=5,
+            lambda_coef=1.0
+        )
+        
+        # Use CV loss for backpropagation
+        cv_loss_tensor = torch.tensor(cv_loss, requires_grad=True)
+        cv_loss_tensor.backward()
+        optimizer.step()
+        
+        return cv_loss, cv_logging
+    else:
+        # Original behavior
+        loss.backward()
+        optimizer.step()
+        return loss.item()  # Return Train Loss
 
 def train_1d_regression(tr_time_end=0, tr_time_start=0):
     # ذخیره Loss برای رسم
@@ -263,7 +302,20 @@ def train_1d_regression(tr_time_end=0, tr_time_start=0):
                 for j in range(y_len):
                     target_y[i, j, y_dim_3[i, j], y_dim_4[i, j]] += args.outlier_val  # noise_val
 
-        train_loss = one_iteration_training(query, target_y)
+        result = one_iteration_training(query, target_y, use_cv_loss=False)  # Set to True to enable CV loss
+        
+        # Handle different return types
+        if isinstance(result, tuple):
+            # CV loss returns (cv_loss, cv_logging)
+            train_loss, cv_logging = result
+            if tr_index % 100 == 0:  # Print CV stats every 100 iterations
+                print(f"Iteration {tr_index}: CV Loss: {train_loss:.4f}, Fold Std: {cv_logging['std_fold_loss']:.4f}")
+                print(f"  Fold Losses: {[f'{x:.3f}' for x in cv_logging['fold_losses']]}")
+                print(f"  Mean NLL: {cv_logging['mean_fold_nll']:.4f}, Mean MSE: {cv_logging['mean_fold_mse']:.4f}")
+        else:
+            # Regular loss returns just the loss value
+            train_loss = result
+            
         train_losses.append(train_loss)
 
         # Test phase
@@ -327,7 +379,7 @@ def train_image_completion(tr_time_end=0, tr_time_start=0):
                 for i in range(bs):
                     target_y[i, y_dim[i], :] += args.outlier_val  # noise_val
 
-            one_iteration_training(query, target_y)
+            one_iteration_training(query, target_y, use_cv_loss=True)  # Set to True to enable CV loss
 
         tr_time_end = time.time()
 
