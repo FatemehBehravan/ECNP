@@ -354,39 +354,6 @@ def calculate_cross_validation_loss_simple(y, mu, v, alpha, beta, k=5, lambda_co
     return cv_loss, cv_logging_dict
 
 
-def calculate_emse(y, mu, v, alpha, beta):
-    """
-    Calculate Expected Mean Squared Error (EMSE) for evidential neural processes
-    
-    EMSE = E[(y - μ)^2] = Var(y) + (E[y] - μ)^2
-    For Student's t-distribution: Var(y) = β/(α-1) * (1 + 1/v)
-    
-    Args:
-        y: True values [batch_size, num_points, ...]
-        mu: Predicted means [batch_size, num_points, ...]
-        v: Predicted variance parameters [batch_size, num_points, ...]
-        alpha: Predicted alpha parameters [batch_size, num_points, ...]
-        beta: Predicted beta parameters [batch_size, num_points, ...]
-    
-    Returns:
-        emse: Expected Mean Squared Error
-    """
-    # Ensure alpha > 1 for valid variance
-    alpha = torch.clamp(alpha, min=1.1)
-    
-    # Calculate variance of Student's t-distribution
-    # Var(y) = β/(α-1) * (1 + 1/v)
-    variance = beta / (alpha - 1) * (1 + 1/v)
-    
-    # Calculate squared bias: (E[y] - μ)^2 = (μ - μ)^2 = 0 for Student's t
-    # But we include it for completeness in case of other distributions
-    bias_squared = (y - mu) ** 2
-    
-    # EMSE = variance + bias_squared
-    emse = variance + bias_squared
-    
-    return emse
-
 
 def calculate_r2_score(y, mu, v, alpha, beta):
     """
@@ -439,9 +406,6 @@ def calculate_evidential_metrics(y, mu, v, alpha, beta):
     Returns:
         metrics_dict: Dictionary containing all metrics
     """
-    # Calculate EMSE
-    emse = calculate_emse(y, mu, v, alpha, beta)
-    mean_emse = torch.mean(emse)
     
     # Calculate R²
     r2 = calculate_r2_score(y, mu, v, alpha, beta)
@@ -449,14 +413,25 @@ def calculate_evidential_metrics(y, mu, v, alpha, beta):
     # Calculate traditional MSE
     mse = torch.mean((y - mu) ** 2)
     
+    # Calculate RMSE (Root Mean Square Error)
+    rmse = torch.sqrt(mse)
+    
+    # Calculate MAE (Mean Absolute Error)
+    mae = torch.mean(torch.abs(y - mu))
+    
+    # Calculate RMAE (Root Mean Absolute Error)
+    rmae = torch.sqrt(mae)
+    
     # Calculate epistemic and aleatoric uncertainty
     epis = torch.mean(beta / (v * (alpha - 1)))
     alea = torch.mean(beta / (alpha - 1))
     
     metrics_dict = {
-        'emse': mean_emse.item(),
         'r2': r2.item(),
         'mse': mse.item(),
+        'rmse': rmse.item(),
+        'mae': mae.item(),
+        'rmae': rmae.item(),
         'epistemic': epis.item(),
         'aleatoric': alea.item()
     }

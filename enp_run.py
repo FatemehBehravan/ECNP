@@ -117,8 +117,11 @@ def test_model_and_save_results(epoch, tr_time_taken = 0):
 
     av_epis = 0
     av_alea = 0
-    total_emse = 0
+    total_mse = 0
     total_r2 = 0
+    total_rmse = 0
+    total_mae = 0
+    total_rmae = 0
 
     test_time_start = time.time()
 
@@ -152,18 +155,27 @@ def test_model_and_save_results(epoch, tr_time_taken = 0):
             dist, recons_loss, kl_loss, loss, mu, v, alpha, beta= model(query, None)
             total_log_likelihood += torch.mean(dist.log_prob(target_y))
 
-            test_loss = F.mse_loss(target_y, mu)
+            from trainingHelpers.lossFunctions import calculate_evidential_loss
+            evidential_loss, ldict = calculate_evidential_loss(epoch, target_y, mu, v, alpha, beta)
+
+
+            test_loss = evidential_loss
             total_test_loss += test_loss
             num_test_tasks += 1
+
+
 
             av_epis += torch.mean(beta / ( v * (alpha - 1)) )
             av_alea += torch.mean(beta / (alpha - 1) )
             
-            # Calculate EMSE and R² for this batch
+            # Calculate comprehensive metrics for this batch
             from trainingHelpers.lossFunctions import calculate_evidential_metrics
             metrics = calculate_evidential_metrics(target_y, mu, v, alpha, beta)
-            total_emse += metrics['emse']
+            total_mse += metrics['mse']
             total_r2 += metrics['r2']
+            total_rmse += metrics['rmse']
+            total_mae += metrics['mae']
+            total_rmae += metrics['rmae']
 
 
 
@@ -171,23 +183,29 @@ def test_model_and_save_results(epoch, tr_time_taken = 0):
     average_log_likelihood = total_log_likelihood / num_test_tasks
     av_epis /= num_test_tasks
     av_alea /= num_test_tasks
-    average_emse = total_emse / num_test_tasks
+    average_mse = total_mse / num_test_tasks
     average_r2 = total_r2 / num_test_tasks
+    average_rmse = total_rmse / num_test_tasks
+    average_mae = total_mae / num_test_tasks
+    average_rmae = total_rmae / num_test_tasks
 
-    print("Epoch: {}, test_loss: {}, EMSE: {:.6f}, R²: {:.6f}".format(
+    print("Epoch: {}, test_loss: {}, MSE: {:.6f}, R²: {:.6f}, RMSE: {:.6f}, MAE: {:.6f}, RMAE: {:.6f}".format(
         epoch, 
         average_test_loss.detach().cpu().numpy().item(),
-        average_emse,
-        average_r2
+        average_mse,
+        average_r2,
+        average_rmse,
+        average_mae,
+        average_rmae
     ))
 
     test_time_taken = time.time() - test_time_start
 
-    keys = ["Epoch", "Test Loss", "Test Log Likelihood", "Epistemic", "Aleatoric", "EMSE", "R²", "Train Time", "Test Time"]
+    keys = ["Epoch", "Test Loss", "Test Log Likelihood", "Epistemic", "Aleatoric", "MSE", "R²", "RMSE", "MAE", "RMAE", "Train Time", "Test Time"]
     values = [epoch]
     values += [float(x.cpu().numpy()) for x in [average_test_loss, average_log_likelihood]]
     values += [float(x.cpu().numpy()) for x in [av_epis, av_alea]]
-    values += [average_emse, average_r2]
+    values += [average_mse, average_r2, average_rmse, average_mae, average_rmae]
     values += [tr_time_taken, test_time_taken]
 
     print("keys: ", keys)
@@ -248,7 +266,7 @@ def test_model_and_save_results(epoch, tr_time_taken = 0):
 
     return average_test_loss
 
-def one_iteration_training(query, target_y, use_cv_loss=True):
+def one_iteration_training(query, target_y, use_cv_loss=False):
     model.train()
     model.zero_grad()
     optimizer.zero_grad()
@@ -379,7 +397,7 @@ def train_image_completion(tr_time_end=0, tr_time_start=0):
                 for i in range(bs):
                     target_y[i, y_dim[i], :] += args.outlier_val  # noise_val
 
-            one_iteration_training(query, target_y, use_cv_loss=True)  # Set to True to enable CV loss
+            one_iteration_training(query, target_y, use_cv_loss=False)  # Set to True to enable CV loss
 
         tr_time_end = time.time()
 
