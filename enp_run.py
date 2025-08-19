@@ -7,9 +7,6 @@ import matplotlib.pyplot as plt
 import os
 import numpy as np
 
-# Set environment variable for better memory management
-os.environ['PYTORCH_CUDA_ALLOC_CONF'] = 'expandable_segments:True'
-
 
 # All the arguments here
 from utilFiles.get_args import the_args
@@ -73,9 +70,7 @@ model = Transformer_Evd_Model(latent_encoder_sizes,
                       attention,
                       ).to(device)
 
-# Fixed learning rate without scheduler to prevent collapse to zero
-optimizer = optim.Adam(model.parameters(), lr=0.001, weight_decay=1e-6)  # Fixed LR without scheduler
-# scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode='min', factor=0.5, patience=200, verbose=True)
+optimizer = optim.Adam(model.parameters(), lr=args.learning_rate, weight_decay=1e-5)
 
 # model = load_model("/home/deep/Desktop/IMPLEMENTATION/MAY/ANPHeterogenous/May18/saved_models/model_9000.pth")
 if args.load_model:
@@ -124,7 +119,6 @@ def test_model_and_save_results(epoch, tr_time_taken = 0):
     av_alea = 0
     total_emse = 0
     total_r2 = 0
-    total_std_fold_loss = 0
 
     test_time_start = time.time()
 
@@ -170,13 +164,6 @@ def test_model_and_save_results(epoch, tr_time_taken = 0):
             metrics = calculate_evidential_metrics(target_y, mu, v, alpha, beta)
             total_emse += metrics['emse']
             total_r2 += metrics['r2']
-            
-            # Calculate cross-validation metrics for this batch
-            from trainingHelpers.lossFunctions import calculate_cross_validation_loss_simple
-            cv_loss, cv_logging = calculate_cross_validation_loss_simple(
-                y=target_y, mu=mu, v=v, alpha=alpha, beta=beta, k=5, lambda_coef=1.0
-            )
-            total_std_fold_loss += cv_logging['std_fold_loss']
 
 
 
@@ -186,23 +173,21 @@ def test_model_and_save_results(epoch, tr_time_taken = 0):
     av_alea /= num_test_tasks
     average_emse = total_emse / num_test_tasks
     average_r2 = total_r2 / num_test_tasks
-    average_std_fold_loss = total_std_fold_loss / num_test_tasks
 
-    print("Epoch: {}, test_loss: {}, EMSE: {:.6f}, R²: {:.6f}, CV_Std: {:.6f}".format(
+    print("Epoch: {}, test_loss: {}, EMSE: {:.6f}, R²: {:.6f}".format(
         epoch, 
         average_test_loss.detach().cpu().numpy().item(),
         average_emse,
-        average_r2,
-        average_std_fold_loss
+        average_r2
     ))
 
     test_time_taken = time.time() - test_time_start
 
-    keys =["Epoch", "Test Loss", "Test Log Likelihood", "Epistemic", "Aleatoric" , "EMSE", "R²", "CV_Std_Fold_Loss", "Train Time", "Test Time"]
+    keys = ["Epoch", "Test Loss", "Test Log Likelihood", "Epistemic", "Aleatoric", "EMSE", "R²", "Train Time", "Test Time"]
     values = [epoch]
     values += [float(x.cpu().numpy()) for x in [average_test_loss, average_log_likelihood]]
     values += [float(x.cpu().numpy()) for x in [av_epis, av_alea]]
-    values += [average_emse, average_r2, average_std_fold_loss]
+    values += [average_emse, average_r2]
     values += [tr_time_taken, test_time_taken]
 
     print("keys: ", keys)
@@ -285,62 +270,17 @@ def one_iteration_training(query, target_y, use_cv_loss=True):
             lambda_coef=1.0
         )
         
-        # Add MSE loss to encourage better predictions
-        mse_loss = F.mse_loss(mu, target_y)
-        # Add diversity loss to encourage wider prediction range
-        diversity_loss = -torch.std(mu)  # Encourage higher standard deviation
-        combined_loss = cv_loss + 0.5 * mse_loss + 0.5 * diversity_loss  # Reduced diversity weight to prevent memory issues
-        
-        # Print prediction range for monitoring (every 100 iterations)
-        if hasattr(one_iteration_training, 'iteration_count'):
-            one_iteration_training.iteration_count += 1
-        else:
-            one_iteration_training.iteration_count = 0
-            
-        if one_iteration_training.iteration_count % 100 == 0:
-            mu_flat = mu.view(-1)
-            
-        # Use combined loss for backpropagation
-        combined_loss_tensor = torch.tensor(combined_loss, requires_grad=True)
-        combined_loss_tensor.backward()
-        
-        # Add gradient clipping to prevent exploding gradients and memory issues
-        torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=0.1)  # Very conservative clipping
-        
-        # Clear cache to prevent memory buildup
-        if torch.cuda.is_available():
-            torch.cuda.empty_cache()
-        
+        # Use CV loss for backpropagation
+        cv_loss_tensor = torch.tensor(cv_loss, requires_grad=True)
+        cv_loss_tensor.backward()
         optimizer.step()
         
-        return combined_loss, cv_logging
+        return cv_loss, cv_logging
     else:
-        # Original behavior with MSE balancing
-        mse_loss = F.mse_loss(mu, target_y)
-        # Add diversity loss to encourage wider prediction range
-        diversity_loss = -torch.std(mu)  # Encourage higher standard deviation
-        balanced_loss = loss + 0.5 * mse_loss + 0.5 * diversity_loss  # Reduced diversity weight to prevent memory issues
-        
-        # Print prediction range for monitoring (every 100 iterations)
-        if hasattr(one_iteration_training, 'iteration_count'):
-            one_iteration_training.iteration_count += 1
-        else:
-            one_iteration_training.iteration_count = 0
-            
-        if one_iteration_training.iteration_count % 100 == 0:
-            mu_flat = mu.view(-1)
-        
-        balanced_loss.backward()
-        
-        # Add gradient clipping to prevent exploding gradients and memory issues
-        torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=0.1)  # Very conservative clipping
-        
-        # Clear cache to prevent memory buildup
-        if torch.cuda.is_available():
-            torch.cuda.empty_cache()
-        
+        # Original behavior
+        loss.backward()
         optimizer.step()
-        return balanced_loss.item()  # Return Train Loss
+        return loss.item()  # Return Train Loss
 
 def train_1d_regression(tr_time_end=0, tr_time_start=0):
     # ذخیره Loss برای رسم
@@ -362,7 +302,7 @@ def train_1d_regression(tr_time_end=0, tr_time_start=0):
                 for j in range(y_len):
                     target_y[i, j, y_dim_3[i, j], y_dim_4[i, j]] += args.outlier_val  # noise_val
 
-        result = one_iteration_training(query, target_y, use_cv_loss=True)  # Enable CV loss for better training
+        result = one_iteration_training(query, target_y, use_cv_loss=False)  # Set to True to enable CV loss
         
         # Handle different return types
         if isinstance(result, tuple):
@@ -377,17 +317,6 @@ def train_1d_regression(tr_time_end=0, tr_time_start=0):
             train_loss = result
             
         train_losses.append(train_loss)
-        
-        
-            
-        # Print learning rate every 1000 iterations
-        if tr_index % 100 == 0:
-            current_lr = optimizer.param_groups[0]['lr']
-            print(f"  Current Learning Rate: {current_lr:.8f}")
-            if current_lr < 1e-8:
-                print(f"  WARNING: Learning rate too low! Resetting to 0.0001")
-                for param_group in optimizer.param_groups:
-                    param_group['lr'] = 0.001
 
         # Test phase
         save_tracker_val = tr_index % args.test_1d_every
