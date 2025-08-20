@@ -121,7 +121,7 @@ class NumericDataset(object):
         self.scaler = None
         self.datetime_data = None
 
-    def generate_curves(self, device, fixed_num_context=3, forecast_horizon=11):
+    def generate_curves(self, device, fixed_num_context=3, forecast_horizon=21):
         def load_csv_data(file_path):
             # Read only the last 500 rows directly
             df = pd.read_csv(file_path, nrows=501)
@@ -155,7 +155,7 @@ class NumericDataset(object):
             # Return both scaled data and datetime
             return df[columns_to_scale], df['datetime']
 
-        def create_xy_matrices(data, datetime_series, pre_length=10, post_length=10):
+        def create_xy_matrices(data, datetime_series, pre_length=20, post_length=20):
             feature_cols = [
                 'hour_sin', 'open', 'high', 'low',
                 'rsi', 'macd', 'macd_signal', 'bb_position',
@@ -180,7 +180,7 @@ class NumericDataset(object):
         file_path = './datasets/XAUUSD.csv'
 
         df_scaled, df_datetime = load_csv_data(file_path)
-        x_list, y_list = create_xy_matrices(df_scaled, df_datetime, pre_length=10, post_length=10)
+        x_list, y_list = create_xy_matrices(df_scaled, df_datetime, pre_length=5, post_length=5)
 
         num_points = len(x_list)
         num_85_percent = int(num_points * 0.85)
