@@ -139,7 +139,7 @@ class NumericDataset(object):
             feature_columns = [
                 'hour_sin', 'open', 'high', 'low',
                 'rsi', 'macd', 'macd_signal', 'bb_position',
-                'stoch_k', 'momentum_5', 'atr', 'bb_width'
+                'stoch_k', 'momentum_5'
             ]
             
             # Target column remains the same
@@ -159,7 +159,7 @@ class NumericDataset(object):
             feature_cols = [
                 'hour_sin', 'open', 'high', 'low',
                 'rsi', 'macd', 'macd_signal', 'bb_position',
-                'stoch_k', 'momentum_5', 'atr', 'bb_width'
+                'stoch_k', 'momentum_5'
             ]
             target_col = 'close'
             
@@ -275,8 +275,8 @@ class NumericDataset(object):
         feature_idx = {
             'hour_sin': 0, 'open': 1, 'high': 2, 'low': 3, 'rsi': 4, 
             'macd': 5, 'macd_signal': 6, 'bb_position': 7,
-            'stoch_k': 8, 'momentum_5': 9, 'atr': 10, 'bb_width': 11,
-            'close': 12
+            'stoch_k': 8, 'momentum_5': 9, 
+            'close': 10
         }
         
         # Convert tensor to numpy if needed
@@ -289,7 +289,7 @@ class NumericDataset(object):
         data_2d = data.reshape(-1, 1)
         
         # Create dummy array for inverse transform
-        dummy = np.zeros((data_2d.shape[0], 13))  # 13 features (12 features + 1 target)
+        dummy = np.zeros((data_2d.shape[0], 11))  # 13 features (12 features + 1 target)
         dummy[:, feature_idx[feature_name]] = data_2d.ravel()
         
         # Inverse transform
