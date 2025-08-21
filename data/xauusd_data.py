@@ -121,7 +121,7 @@ class NumericDataset(object):
         self.scaler = None
         self.datetime_data = None
 
-    def generate_curves(self, device, fixed_num_context=3, forecast_horizon=21):
+    def generate_curves(self, device, fixed_num_context=3):
         def load_csv_data(file_path):
             # Read only the last 500 rows directly
             df = pd.read_csv(file_path, nrows=501)
@@ -171,8 +171,8 @@ class NumericDataset(object):
             # Use numpy operations instead of list appending
             for i in range(num_samples):
                 x_list[i] = data.iloc[i:i + pre_length][feature_cols].to_numpy()#0-10
-                #y_list[i] = data.iloc[i + 5 :i + post_length + 5][[target_col]].to_numpy() #5-15
-                y_list[i] = data.iloc[i + 1 :i + post_length + 1][[target_col]].to_numpy() #1-11
+                y_list[i] = data.iloc[i + 5 :i + post_length + 5][[target_col]].to_numpy() #5-15
+                # y_list[i] = data.iloc[i + 1 :i + post_length + 1][[target_col]].to_numpy() #1-11
                 # y_list[i] = data.iloc[i + pre_length + 1 :i + pre_length + post_length + 1][[target_col]].to_numpy() #11-21
             
             return x_list, y_list
@@ -182,7 +182,7 @@ class NumericDataset(object):
         file_path = './datasets/XAUUSD.csv'
 
         df_scaled, df_datetime = load_csv_data(file_path)
-        x_list, y_list = create_xy_matrices(df_scaled, df_datetime, pre_length=20, post_length=20)
+        x_list, y_list = create_xy_matrices(df_scaled, df_datetime, pre_length=10, post_length=10)
 
         num_points = len(x_list)
         num_85_percent = int(num_points * 0.85)
@@ -303,4 +303,5 @@ class NumericDataset(object):
             result = torch.from_numpy(result)
             
         return result
+
 
