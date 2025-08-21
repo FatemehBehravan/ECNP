@@ -155,7 +155,7 @@ class NumericDataset(object):
             # Return both scaled data and datetime
             return df[columns_to_scale], df['datetime']
 
-        def create_xy_matrices(data, datetime_series, pre_length=20, post_length=20):
+        def create_xy_matrices(data, datetime_series, pre_length, post_length):
             feature_cols = [
                 'hour_sin', 'open', 'high', 'low',
                 'rsi', 'macd', 'macd_signal', 'bb_position',
@@ -180,7 +180,7 @@ class NumericDataset(object):
         file_path = './datasets/XAUUSD.csv'
 
         df_scaled, df_datetime = load_csv_data(file_path)
-        x_list, y_list = create_xy_matrices(df_scaled, df_datetime, pre_length=5, post_length=5)
+        x_list, y_list = create_xy_matrices(df_scaled, df_datetime, pre_length=20, post_length=20)
 
         num_points = len(x_list)
         num_85_percent = int(num_points * 0.85)
@@ -301,3 +301,4 @@ class NumericDataset(object):
             result = torch.from_numpy(result)
             
         return result
+
