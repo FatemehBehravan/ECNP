@@ -171,9 +171,9 @@ class NumericDataset(object):
             # Use numpy operations instead of list appending
             for i in range(num_samples):
                 x_list[i] = data.iloc[i:i + pre_length][feature_cols].to_numpy()#0-10
-                y_list[i] = data.iloc[i + 5 :i + post_length + 5][[target_col]].to_numpy() #5-15
+                # y_list[i] = data.iloc[i + 5 :i + post_length + 5][[target_col]].to_numpy() #5-15
                 # y_list[i] = data.iloc[i + 1 :i + post_length + 1][[target_col]].to_numpy() #1-11
-                # y_list[i] = data.iloc[i + pre_length + 1 :i + pre_length + post_length + 1][[target_col]].to_numpy() #11-21
+                y_list[i] = data.iloc[i + pre_length + 1 :i + pre_length + post_length + 1][[target_col]].to_numpy() #11-21
             
             return x_list, y_list
 
