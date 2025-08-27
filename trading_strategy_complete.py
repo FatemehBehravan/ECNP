@@ -35,6 +35,7 @@ class XAUUSDTradingStrategy:
     - When y_pred[i+lookforward] > current_price + threshold: BUY
     - When y_pred[i+lookforward] < current_price - threshold: SELL
     - P&L calculation: (target_y_orig[i+lookforward] - target_y_orig[i]) for buy positions
+    - NEW: Uncertainty-based position sizing for dynamic risk management
     """
     
     def __init__(self, 
@@ -44,6 +45,9 @@ class XAUUSDTradingStrategy:
                  significance_threshold=0.002,  # 0.2% price change threshold
                  max_position_size=0.8,  # Maximum 80% of capital per trade
                  max_concurrent_positions=3,  # NEW: Maximum concurrent positions
+                 uncertainty_scaling=True,  # NEW: Enable uncertainty-based position sizing
+                 min_position_factor=0.1,  # NEW: Minimum 10% of base position
+                 max_position_factor=1.0,  # NEW: Maximum 100% of base position
                  device="cuda",
                  data_source=None):  # NEW: For dataset bias detection
         """
@@ -56,6 +60,9 @@ class XAUUSDTradingStrategy:
             significance_threshold: Minimum price change to trigger trade (as fraction)
             max_position_size: Maximum fraction of capital to risk per trade
             max_concurrent_positions: Maximum number of concurrent positions allowed
+            uncertainty_scaling: Enable uncertainty-based position sizing
+            min_position_factor: Minimum position size as fraction of base position
+            max_position_factor: Maximum position size as fraction of base position
             device: Computing device (cuda/cpu)
             data_source: Hint about data source for bias detection (e.g., filename)
         """
@@ -66,6 +73,11 @@ class XAUUSDTradingStrategy:
         self.significance_threshold = significance_threshold
         self.max_position_size = max_position_size
         self.max_concurrent_positions = max_concurrent_positions
+        
+        # NEW: Uncertainty-based position sizing parameters
+        self.uncertainty_scaling = uncertainty_scaling
+        self.min_position_factor = min_position_factor
+        self.max_position_factor = max_position_factor
         
         # Dataset bias configuration (affects ~50% of signals)
         self.dataset_type = None  # Will be detected: 'uptrend', 'downtrend', 'range', or 'normal'
@@ -100,6 +112,9 @@ class XAUUSDTradingStrategy:
         print(f"  Prediction Lookforward: {prediction_lookforward} steps")
         print(f"  Significance Threshold: {significance_threshold*100:.2f}%")
         print(f"  Max Concurrent Positions: {max_concurrent_positions}")
+        print(f"  Uncertainty Scaling: {'ENABLED' if uncertainty_scaling else 'DISABLED'}")
+        if uncertainty_scaling:
+            print(f"  Position Size Range: {min_position_factor*100:.0f}% - {max_position_factor*100:.0f}% of base")
         print(f"  Device: {self.device}")
         
         # Detect dataset type for bias application
@@ -190,19 +205,23 @@ class XAUUSDTradingStrategy:
             current_index: Current position in dataset
             
         Returns:
-            tuple: (signal, strength, predicted_price)
+            tuple: (signal, strength, predicted_price, epistemic_uncertainty)
                 signal: 1 for buy, -1 for sell, 0 for hold
                 strength: Signal strength (price change magnitude)
                 predicted_price: Predicted price at lookforward step
+                epistemic_uncertainty: Model's epistemic uncertainty for position sizing
         """
         if predictions is None or len(predictions['predictions']) <= self.prediction_lookforward:
-            return 0, 0.0, current_price
+            return 0, 0.0, current_price, None
         
         # Get predicted price at lookforward step
         predicted_price = predictions['predictions'][self.prediction_lookforward]
         
         # Calculate relative price change
         price_change = (predicted_price - current_price) / current_price
+        
+        # Get epistemic uncertainty for position sizing
+        epistemic_uncertainty = np.mean(predictions['epistemic_uncertainty'])
         
         # Generate signal based on normal significance threshold (no threshold adjustment)
         signal = 0
@@ -229,9 +248,9 @@ class XAUUSDTradingStrategy:
         
         
         if signal != 0:
-            return signal, strength, predicted_price
+            return signal, strength, predicted_price, epistemic_uncertainty
         
-        return 0, 0.0, predicted_price
+        return 0, 0.0, predicted_price, epistemic_uncertainty
     
 
     def _update_legacy_position_status(self):
@@ -288,6 +307,34 @@ class XAUUSDTradingStrategy:
             self.dataset_type = 'normal'
             print(f"📍 DATASET BIAS: Dataset type unknown - No bias applied")
     
+    def calculate_uncertainty_based_position_size(self, epistemic_uncertainty, base_position_size):
+        """
+        Calculate position size based on model uncertainty
+        Lower uncertainty = larger position, Higher uncertainty = smaller position
+        
+        Args:
+            epistemic_uncertainty: Model's epistemic uncertainty (0-1 range)
+            base_position_size: Base position size in dollars
+            
+        Returns:
+            Adjusted position size based on uncertainty
+        """
+        if not self.uncertainty_scaling:
+            return base_position_size
+        
+        # Normalize uncertainty to 0-1 range (assuming uncertainty is already in reasonable range)
+        normalized_uncertainty = min(epistemic_uncertainty, 1.0)
+        
+        # Inverse relationship: uncertainty decreases position size
+        confidence_factor = 1.0 - normalized_uncertainty
+        
+        # Apply minimum and maximum bounds
+        position_factor = self.min_position_factor + (self.max_position_factor - self.min_position_factor) * confidence_factor
+        
+        adjusted_position_size = base_position_size * position_factor
+        
+        return adjusted_position_size
+    
     def _calculate_position_pnl(self, position, current_price):
         """Calculate current P&L for a position"""
         entry_price = position['entry_price']
@@ -311,9 +358,9 @@ class XAUUSDTradingStrategy:
     
 
     
-    def execute_trade(self, signal, current_price, current_index, predicted_price, strength=1.0):
+    def execute_trade(self, signal, current_price, current_index, predicted_price, strength=1.0, epistemic_uncertainty=None):
         """
-        Execute a trading decision with support for multiple concurrent positions
+        Execute a trading decision with support for multiple concurrent positions and uncertainty-based sizing
         
         Args:
             signal: 1 for buy, -1 for sell, 0 for hold (no action)
@@ -321,6 +368,7 @@ class XAUUSDTradingStrategy:
             current_index: Current position in dataset
             predicted_price: Predicted future price
             strength: Signal strength (affects position size)
+            epistemic_uncertainty: Model's epistemic uncertainty for position sizing
         """
         timestamp = self.data_manager.get_datetime_at_index(current_index)
         
@@ -333,7 +381,8 @@ class XAUUSDTradingStrategy:
             'capital_before': self.current_capital,
             'positions_before': len(self.positions),
             'total_exposure_before': self._get_total_exposure(),
-            'signal_strength': strength
+            'signal_strength': strength,
+            'epistemic_uncertainty': epistemic_uncertainty
         }
         
         positions_closed = 0
@@ -365,18 +414,42 @@ class XAUUSDTradingStrategy:
             self._close_position_by_index(pos_index, current_price, current_index, trade_record)
             positions_closed += 1
         
-        # 2. Independent signal-based position opening 
+        # 2. Independent signal-based position opening with uncertainty-based sizing
         # Existing positions close ONLY when they hit stop loss (-1%) or take profit (+2%)
         if signal != 0:
-            position_size = self.current_capital * self.max_position_size
-            if self._can_open_new_position(position_size):
+            # Calculate base position size
+            base_position_size = self.current_capital * self.max_position_size
+            
+            # Apply uncertainty-based scaling
+            if epistemic_uncertainty is not None and self.uncertainty_scaling:
+                actual_position_size = self.calculate_uncertainty_based_position_size(
+                    epistemic_uncertainty, base_position_size
+                )
+                
+                # Log uncertainty-based sizing
+                confidence_factor = 1.0 - min(epistemic_uncertainty, 1.0)
+                print(f"  🎯 UNCERTAINTY SIZING: Uncertainty={epistemic_uncertainty:.3f}, "
+                      f"Confidence={confidence_factor:.1%}, Position={actual_position_size:.0f}% of capital")
+            else:
+                actual_position_size = base_position_size
+            
+            if self._can_open_new_position(actual_position_size):
                 # Determine action type for clearer logging
                 signal_type = "LONG" if signal == 1 else "SHORT"
                 action_desc = f"DIRECT_{signal_type}"
                 
-                self._open_new_position(signal, current_price, current_index, position_size, trade_record, strength)
+                self._open_new_position(signal, current_price, current_index, actual_position_size, trade_record, strength)
                 trade_record['action_type'] = action_desc
                 position_opened = True
+                
+                # Store uncertainty information
+                if epistemic_uncertainty is not None:
+                    trade_record.update({
+                        'confidence_factor': 1.0 - min(epistemic_uncertainty, 1.0),
+                        'base_position_size': base_position_size,
+                        'actual_position_size': actual_position_size,
+                        'position_scaling_factor': actual_position_size / base_position_size if base_position_size > 0 else 0
+                    })
             else:
                 # Log that we wanted to trade but couldn't due to capital constraints
                 signal_type = "LONG" if signal == 1 else "SHORT"
@@ -556,7 +629,7 @@ class XAUUSDTradingStrategy:
                 total_predictions += 1
                 
                 # Check for trading signal
-                signal, strength, predicted_price = self.check_trading_signal(
+                signal, strength, predicted_price, epistemic_uncertainty = self.check_trading_signal(
                     predictions, current_price, current_index
                 )
                 
@@ -565,7 +638,7 @@ class XAUUSDTradingStrategy:
                 
                 if should_trade:
                     position_opened = self.execute_trade(signal, current_price, current_index, 
-                                                       predicted_price, strength)
+                                                       predicted_price, strength, epistemic_uncertainty)
                     
                     # Count only actual new positions opened (FIXED: Accurate trade counting)
                     if position_opened:
@@ -684,8 +757,57 @@ class XAUUSDTradingStrategy:
         
         return report
     
+    def analyze_uncertainty_impact(self):
+        """Analyze how uncertainty affected position sizing and performance"""
+        if not self.trade_history:
+            return None
+            
+        df_trades = pd.DataFrame(self.trade_history)
+        
+        if 'epistemic_uncertainty' not in df_trades.columns:
+            return None
+        
+        # Filter trades with uncertainty data
+        trades_with_uncertainty = df_trades[df_trades['epistemic_uncertainty'].notna()]
+        
+        if len(trades_with_uncertainty) == 0:
+            return None
+        
+        # Group by uncertainty levels
+        low_uncertainty = trades_with_uncertainty[trades_with_uncertainty['epistemic_uncertainty'] < 0.3]
+        medium_uncertainty = trades_with_uncertainty[
+            (trades_with_uncertainty['epistemic_uncertainty'] >= 0.3) & 
+            (trades_with_uncertainty['epistemic_uncertainty'] < 0.7)
+        ]
+        high_uncertainty = trades_with_uncertainty[trades_with_uncertainty['epistemic_uncertainty'] >= 0.7]
+        
+        analysis = {
+            'total_trades_with_uncertainty': len(trades_with_uncertainty),
+            'low_uncertainty_trades': len(low_uncertainty),
+            'medium_uncertainty_trades': len(medium_uncertainty),
+            'high_uncertainty_trades': len(high_uncertainty),
+            'avg_uncertainty': trades_with_uncertainty['epistemic_uncertainty'].mean(),
+            'avg_confidence': trades_with_uncertainty['confidence_factor'].mean() if 'confidence_factor' in trades_with_uncertainty.columns else None,
+            'avg_position_scaling': trades_with_uncertainty['position_scaling_factor'].mean() if 'position_scaling_factor' in trades_with_uncertainty.columns else None
+        }
+        
+        # Calculate performance by uncertainty level
+        if len(low_uncertainty) > 0:
+            analysis['low_uncertainty_avg_pnl'] = low_uncertainty['pnl'].mean() if 'pnl' in low_uncertainty.columns else None
+            analysis['low_uncertainty_avg_position_size'] = low_uncertainty['actual_position_size'].mean() if 'actual_position_size' in low_uncertainty.columns else None
+        
+        if len(medium_uncertainty) > 0:
+            analysis['medium_uncertainty_avg_pnl'] = medium_uncertainty['pnl'].mean() if 'pnl' in medium_uncertainty.columns else None
+            analysis['medium_uncertainty_avg_position_size'] = medium_uncertainty['actual_position_size'].mean() if 'actual_position_size' in medium_uncertainty.columns else None
+        
+        if len(high_uncertainty) > 0:
+            analysis['high_uncertainty_avg_pnl'] = high_uncertainty['pnl'].mean() if 'pnl' in high_uncertainty.columns else None
+            analysis['high_uncertainty_avg_position_size'] = high_uncertainty['actual_position_size'].mean() if 'actual_position_size' in high_uncertainty.columns else None
+        
+        return analysis
+
     def plot_results(self, save_path="trading_results"):
-        """Generate comprehensive trading performance plots"""
+        """Generate comprehensive trading performance plots with uncertainty analysis"""
         if not self.capital_history:
             print("No trading data to plot")
             return
@@ -741,13 +863,19 @@ class XAUUSDTradingStrategy:
         plt.savefig(f"{save_path}/trading_performance.png", dpi=300, bbox_inches='tight')
         plt.close()
         
+        # NEW: Uncertainty analysis plot
+        if self.trade_history and self.uncertainty_scaling:
+            self._plot_uncertainty_analysis(save_path)
+        
         # Save detailed trade log
         if self.trade_history:
             df_trades = pd.DataFrame(self.trade_history)
             df_trades.to_csv(f"{save_path}/detailed_trade_log.csv", index=False)
         
-        # Save summary report
+        # Save summary report with uncertainty analysis
         report = self.generate_report()
+        uncertainty_analysis = self.analyze_uncertainty_impact()
+        
         with open(f"{save_path}/performance_summary.txt", 'w') as f:
             f.write("XAUUSD Trading Strategy Performance Report\n")
             f.write("=" * 50 + "\n\n")
@@ -758,22 +886,93 @@ class XAUUSDTradingStrategy:
                     f.write(f"{key.replace('_', ' ').title()}: {value:.4f}\n")
                 else:
                     f.write(f"{key.replace('_', ' ').title()}: {value}\n")
+            
+            if uncertainty_analysis:
+                f.write("\nUncertainty Analysis:\n")
+                f.write("-" * 20 + "\n")
+                f.write(f"Total Trades with Uncertainty: {uncertainty_analysis['total_trades_with_uncertainty']}\n")
+                f.write(f"Low Uncertainty Trades: {uncertainty_analysis['low_uncertainty_trades']}\n")
+                f.write(f"Medium Uncertainty Trades: {uncertainty_analysis['medium_uncertainty_trades']}\n")
+                f.write(f"High Uncertainty Trades: {uncertainty_analysis['high_uncertainty_trades']}\n")
+                f.write(f"Average Uncertainty: {uncertainty_analysis['avg_uncertainty']:.3f}\n")
+                if uncertainty_analysis['avg_confidence']:
+                    f.write(f"Average Confidence: {uncertainty_analysis['avg_confidence']:.1%}\n")
+                if uncertainty_analysis['avg_position_scaling']:
+                    f.write(f"Average Position Scaling: {uncertainty_analysis['avg_position_scaling']:.1%}\n")
         
         print(f"Results and plots saved to {save_path}/")
+    
+    def _plot_uncertainty_analysis(self, save_path):
+        """Create uncertainty analysis plots"""
+        df_trades = pd.DataFrame(self.trade_history)
+        
+        if 'epistemic_uncertainty' not in df_trades.columns:
+            return
+        
+        # Filter trades with uncertainty data
+        trades_with_uncertainty = df_trades[df_trades['epistemic_uncertainty'].notna()]
+        
+        if len(trades_with_uncertainty) == 0:
+            return
+        
+        fig, ((ax1, ax2), (ax3, ax4)) = plt.subplots(2, 2, figsize=(16, 12))
+        
+        # 1. Uncertainty Distribution
+        ax1.hist(trades_with_uncertainty['epistemic_uncertainty'], bins=20, alpha=0.7, color='blue', edgecolor='black')
+        ax1.set_title('Epistemic Uncertainty Distribution', fontsize=14, fontweight='bold')
+        ax1.set_xlabel('Epistemic Uncertainty')
+        ax1.set_ylabel('Frequency')
+        ax1.grid(True, alpha=0.3)
+        
+        # 2. Position Size vs Uncertainty
+        if 'actual_position_size' in trades_with_uncertainty.columns:
+            ax2.scatter(trades_with_uncertainty['epistemic_uncertainty'], 
+                       trades_with_uncertainty['actual_position_size'], alpha=0.6, s=20)
+            ax2.set_title('Position Size vs Uncertainty', fontsize=14, fontweight='bold')
+            ax2.set_xlabel('Epistemic Uncertainty')
+            ax2.set_ylabel('Position Size ($)')
+            ax2.grid(True, alpha=0.3)
+        
+        # 3. Confidence Factor Distribution
+        if 'confidence_factor' in trades_with_uncertainty.columns:
+            ax3.hist(trades_with_uncertainty['confidence_factor'], bins=20, alpha=0.7, color='green', edgecolor='black')
+            ax3.set_title('Confidence Factor Distribution', fontsize=14, fontweight='bold')
+            ax3.set_xlabel('Confidence Factor')
+            ax3.set_ylabel('Frequency')
+            ax3.grid(True, alpha=0.3)
+        
+        # 4. P&L vs Uncertainty
+        if 'pnl' in trades_with_uncertainty.columns:
+            ax4.scatter(trades_with_uncertainty['epistemic_uncertainty'], 
+                       trades_with_uncertainty['pnl'], alpha=0.6, s=20)
+            ax4.axhline(y=0, color='red', linestyle='--', alpha=0.8)
+            ax4.set_title('P&L vs Uncertainty', fontsize=14, fontweight='bold')
+            ax4.set_xlabel('Epistemic Uncertainty')
+            ax4.set_ylabel('P&L ($)')
+            ax4.grid(True, alpha=0.3)
+        
+        plt.tight_layout()
+        plt.savefig(f"{save_path}/uncertainty_analysis.png", dpi=300, bbox_inches='tight')
+        plt.close()
 
 def main():
     """Main function to run the XAUUSD trading strategy"""
     print("XAUUSD Trading Strategy")
     print("Based on Evidential Neural Process Forecasting")
+    print("With Uncertainty-Based Position Sizing")
     print("=" * 70)
     
-    # Initialize trading strategy with your requested parameters
+    # Initialize trading strategy with uncertainty-based position sizing
     strategy = XAUUSDTradingStrategy(
         model_path="CNP-model-save-name/saved_models/model_4000.pth",
         initial_capital=1000.0,
         prediction_lookforward=5,  # As requested: look 5 steps ahead
         significance_threshold=0.002,  # 0.2% threshold for trading signals
         max_position_size=0.8,  # Risk max 80% of capital
+        max_concurrent_positions=3,  # Allow up to 3 concurrent positions
+        uncertainty_scaling=True,  # Enable uncertainty-based position sizing
+        min_position_factor=0.1,  # Minimum 10% of base position
+        max_position_factor=1.0,  # Maximum 100% of base position
         device="cuda" if torch.cuda.is_available() else "cpu"
     )
     
@@ -797,6 +996,22 @@ def main():
             print(f"{key.replace('_', ' ').title():.<30} {value:.4f}")
         else:
             print(f"{key.replace('_', ' ').title():.<30} {value}")
+    
+    # Print uncertainty analysis
+    uncertainty_analysis = strategy.analyze_uncertainty_impact()
+    if uncertainty_analysis:
+        print("\n" + "=" * 60)
+        print("UNCERTAINTY-BASED POSITION SIZING ANALYSIS")
+        print("=" * 60)
+        print(f"Total Trades with Uncertainty: {uncertainty_analysis['total_trades_with_uncertainty']}")
+        print(f"Low Uncertainty Trades: {uncertainty_analysis['low_uncertainty_trades']}")
+        print(f"Medium Uncertainty Trades: {uncertainty_analysis['medium_uncertainty_trades']}")
+        print(f"High Uncertainty Trades: {uncertainty_analysis['high_uncertainty_trades']}")
+        print(f"Average Uncertainty: {uncertainty_analysis['avg_uncertainty']:.3f}")
+        if uncertainty_analysis['avg_confidence']:
+            print(f"Average Confidence: {uncertainty_analysis['avg_confidence']:.1%}")
+        if uncertainty_analysis['avg_position_scaling']:
+            print(f"Average Position Scaling: {uncertainty_analysis['avg_position_scaling']:.1%}")
     
     # Generate comprehensive plots and save results
     strategy.plot_results("trading_results")

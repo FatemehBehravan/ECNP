@@ -203,16 +203,31 @@ def analyze_signal_generation(strategy, config):
     expected_signal_ratio = 0.008 / config['threshold']  # Relative to ultra conservative
     expected_trades = min(config['max_trades'], int(50 * expected_signal_ratio))  # Rough estimate
     
+    # NEW: Uncertainty analysis
+    uncertainty_analysis = None
+    if 'epistemic_uncertainty' in df_trades.columns and config['uncertainty_scaling']:
+        trades_with_uncertainty = df_trades[df_trades['epistemic_uncertainty'].notna()]
+        if len(trades_with_uncertainty) > 0:
+            avg_uncertainty = trades_with_uncertainty['epistemic_uncertainty'].mean()
+            avg_position_scaling = trades_with_uncertainty['position_scaling_factor'].mean() if 'position_scaling_factor' in trades_with_uncertainty.columns else None
+            uncertainty_analysis = {
+                'avg_uncertainty': avg_uncertainty,
+                'avg_position_scaling': avg_position_scaling,
+                'uncertainty_trades': len(trades_with_uncertainty)
+            }
+    
     analysis = {
         'strategy_name': config['name'],
         'threshold': config['threshold'],
+        'base_position_size': config['base_position_size'],
+        'uncertainty_scaling': config['uncertainty_scaling'],
         'expected_trades_estimate': expected_trades,
         'actual_open_trades': open_trades,
         'actual_close_trades': close_trades,
         'signal_efficiency': open_trades / max(expected_trades, 1),
         'capital_depletion': capital_depletion,
         'final_capital_ratio': final_capital / initial_capital,
-        'avg_position_size': config['position_size']
+        'uncertainty_analysis': uncertainty_analysis
     }
     
     return analysis
@@ -246,41 +261,56 @@ def run_detailed_strategy_analysis():
     print("  • No trend restrictions (trades any direction)")
     print("=" * 100)
     
-    # Strategy configurations (UPDATED: Realistic thresholds based on model predictions)
-    # Debug showed avg predicted change = 14.81%, so using meaningful thresholds
+    # Strategy configurations (UPDATED: Uncertainty-based position sizing)
+    # Each strategy now uses both significance threshold AND uncertainty-based position sizing
     configurations = [
         {
             "name": "Ultra Conservative",
-            "threshold": 0.10,  # 10% threshold - Only trade on extreme predictions
-            "position_size": 0.1,  # 10% max position
+            "threshold": 0.10,                    # 10% price change required
+            "base_position_size": 0.05,           # 5% base position (very small)
+            "uncertainty_scaling": True,          # Enable uncertainty scaling
+            "min_position_factor": 0.05,          # Minimum 5% of base position
+            "max_position_factor": 0.8,           # Maximum 80% of base position
             "max_trades": 5000,
             "step_size": 2
         },
         {
             "name": "Conservative", 
-            "threshold": 0.07,  # 7% threshold - Trade on very strong predictions
-            "position_size": 0.15,  # 15% max position
+            "threshold": 0.07,                    # 7% price change required
+            "base_position_size": 0.10,           # 10% base position
+            "uncertainty_scaling": True,
+            "min_position_factor": 0.1,           # Minimum 10% of base position
+            "max_position_factor": 0.9,           # Maximum 90% of base position
             "max_trades": 5000,
             "step_size": 2
         },
         {
             "name": "Moderate",
-            "threshold": 0.04,  # 4% threshold - Trade on strong predictions
-            "position_size": 0.2,  # 20% max position
+            "threshold": 0.04,                    # 4% price change required
+            "base_position_size": 0.20,           # 20% base position
+            "uncertainty_scaling": True,
+            "min_position_factor": 0.15,          # Minimum 15% of base position
+            "max_position_factor": 1.0,           # Maximum 100% of base position
             "max_trades": 5000,
             "step_size": 2
         },
         {
             "name": "Aggressive",
-            "threshold": 0.01,  # 1% threshold - Trade on above-average predictions
-            "position_size": 0.25,  # 25% max position
+            "threshold": 0.01,                    # 1% price change required
+            "base_position_size": 0.30,           # 30% base position
+            "uncertainty_scaling": True,
+            "min_position_factor": 0.2,           # Minimum 20% of base position
+            "max_position_factor": 1.0,           # Maximum 100% of base position
             "max_trades": 5000,
             "step_size": 2
         },
         {
             "name": "Ultra Aggressive",
-            "threshold": 0.005,  # 0.5% threshold - Trade on most predictions
-            "position_size": 0.3,  # 30% max position
+            "threshold": 0.005,                   # 0.5% price change required
+            "base_position_size": 0.40,           # 40% base position
+            "uncertainty_scaling": True,
+            "min_position_factor": 0.25,          # Minimum 25% of base position
+            "max_position_factor": 1.0,           # Maximum 100% of base position
             "max_trades": 5000,
             "step_size": 2
         }
@@ -291,7 +321,9 @@ def run_detailed_strategy_analysis():
     
     for config in configurations:
         print(f"\n{'='*30} {config['name']} Strategy {'='*30}")
-        print(f"Threshold: {config['threshold']*100:.2f}% | Position Size: {config['position_size']*100:.0f}% | Target: {config['max_trades']} trades")
+        print(f"Threshold: {config['threshold']*100:.2f}% | Base Position: {config['base_position_size']*100:.0f}% | Uncertainty Scaling: {'ON' if config['uncertainty_scaling'] else 'OFF'}")
+        if config['uncertainty_scaling']:
+            print(f"Position Range: {config['min_position_factor']*100:.0f}% - {config['max_position_factor']*100:.0f}% of base | Target: {config['max_trades']} trades")
         print("-" * 90)
         
         # Initialize and run strategy
@@ -300,8 +332,11 @@ def run_detailed_strategy_analysis():
             initial_capital=1000.0,
             prediction_lookforward=5,
             significance_threshold=config['threshold'],
-            max_position_size=config['position_size'],
+            max_position_size=config['base_position_size'],  # Use base_position_size as max_position_size
             max_concurrent_positions=3,  # NEW: Allow up to 3 concurrent positions
+            uncertainty_scaling=config['uncertainty_scaling'],  # NEW: Enable uncertainty scaling
+            min_position_factor=config['min_position_factor'],  # NEW: Minimum position factor
+            max_position_factor=config['max_position_factor'],  # NEW: Maximum position factor
             device="cuda"
         )
         
@@ -367,6 +402,13 @@ def run_detailed_strategy_analysis():
             if signal_analysis['capital_depletion']:
                 print(f"  ⚠️  CAPITAL DEPLETION DETECTED!")
             
+            # Show uncertainty analysis if available
+            if signal_analysis['uncertainty_analysis']:
+                print(f"\n🧠 UNCERTAINTY ANALYSIS:")
+                print(f"  Average Epistemic Uncertainty: {signal_analysis['uncertainty_analysis']['avg_uncertainty']:.4f}")
+                print(f"  Average Position Scaling Factor: {signal_analysis['uncertainty_analysis']['avg_position_scaling']:.4f}")
+                print(f"  Trades with Uncertainty: {signal_analysis['uncertainty_analysis']['uncertainty_trades']}")
+            
             # Show first few trades as example
             # print(f"\n📋 FIRST 5 TRADES:")
             # print(trade_history_df.head().to_string(index=False))
@@ -382,7 +424,9 @@ def run_detailed_strategy_analysis():
                 'Avg_Loss_Lose': avg_pnl_failed,
                 'Final_Capital': report['final_capital'],
                 'Total_Return_Pct': report['total_return_pct'],
-                'Max_Drawdown_Pct': report['max_drawdown_pct']
+                'Max_Drawdown_Pct': report['max_drawdown_pct'],
+                'Uncertainty_Scaling': config['uncertainty_scaling'],
+                'Base_Position_Size': config['base_position_size'] * 100
             })
         else:
             print("No completed trades found for this strategy.")
@@ -436,12 +480,18 @@ def run_detailed_strategy_analysis():
                 signal_data = {
                     'Strategy': strategy_name,
                     'Threshold_%': config_match['threshold'] * 100,
-                    'Position_Size_%': config_match['position_size'] * 100,
+                    'Position_Size_%': config_match['base_position_size'] * 100,
+                    'Uncertainty_Scaling': config_match['uncertainty_scaling'],
                     'Actual_Trades': len(strategy_trades),
                     'Expected_Sensitivity': f"{0.8 / config_match['threshold']:.1f}x",
                     'Avg_Holding_Period': strategy_trades['Holding_Period'].mean(),
                     'Success_Rate_%': len(strategy_trades[strategy_trades['Result'] == 'SUCCESS']) / len(strategy_trades) * 100
                 }
+                # Add uncertainty analysis to summary if available
+                if 'uncertainty_analysis' in signal_analysis and signal_analysis['uncertainty_analysis']:
+                    signal_data['Avg_Epistemic_Uncertainty'] = signal_analysis['uncertainty_analysis']['avg_uncertainty']
+                    signal_data['Avg_Position_Scaling'] = signal_analysis['uncertainty_analysis']['avg_position_scaling']
+                    signal_data['Uncertainty_Trades'] = signal_analysis['uncertainty_analysis']['uncertainty_trades']
                 signal_summary.append(signal_data)
         
         signal_df = pd.DataFrame(signal_summary)

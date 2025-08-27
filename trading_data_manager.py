@@ -44,8 +44,15 @@ class TradingDataManager:
         hours = df['datetime'].dt.hour
         df['hour_sin'] = np.sin(2 * np.pi * hours / 24)
         
-        # Prepare feature columns
-        self.feature_cols = ['hour_sin', 'open', 'high', 'low']
+        # Calculate technical indicators (matching xauusd_data.py)
+        df = self._calculate_technical_indicators(df)
+        
+        # Prepare feature columns (matching the 10 features from xauusd_data.py)
+        self.feature_cols = [
+            'hour_sin', 'open', 'high', 'low',
+            'rsi', 'macd', 'macd_signal', 'bb_position',
+            'stoch_k', 'momentum_5'
+        ]
         self.target_col = 'close'
         self.datetime_col = 'datetime'
         
@@ -53,8 +60,8 @@ class TradingDataManager:
         self.original_prices = df['close'].values.copy()
         self.original_datetimes = df['datetime'].values.copy()
         
-        # Scale the data
-        columns_to_scale = ['hour_sin', 'open', 'high', 'low', 'close']
+        # Scale the data (all features + target)
+        columns_to_scale = self.feature_cols + [self.target_col]
         scaled_data = self.scaler.fit_transform(df[columns_to_scale])
         
         # Create scaled dataframe
@@ -63,8 +70,58 @@ class TradingDataManager:
         
         print(f"Loaded {len(df)} data points")
         print(f"Full dataset date range: {df['datetime'].min()} to {df['datetime'].max()}")
+        print(f"Features: {len(self.feature_cols)} features including technical indicators")
         
         self.is_fitted = True
+        return df
+    
+    def _calculate_technical_indicators(self, df):
+        """
+        Calculate technical indicators matching xauusd_data.py
+        """
+        # RSI (Relative Strength Index)
+        def calculate_rsi(prices, window=14):
+            delta = prices.diff()
+            gain = (delta.where(delta > 0, 0)).rolling(window=window, min_periods=1).mean()
+            loss = (-delta.where(delta < 0, 0)).rolling(window=window, min_periods=1).mean()
+            rs = gain / loss
+            rsi = 100 - (100 / (1 + rs))
+            return rsi.fillna(50)
+        
+        df['rsi'] = calculate_rsi(df['close'])
+        
+        # MACD (Moving Average Convergence Divergence)
+        ema_12 = df['close'].ewm(span=12, min_periods=1).mean()
+        ema_26 = df['close'].ewm(span=26, min_periods=1).mean()
+        df['macd'] = ema_12 - ema_26
+        df['macd_signal'] = df['macd'].ewm(span=9, min_periods=1).mean()
+        
+        # Bollinger Bands
+        bb_window = 20
+        bb_std = 2
+        bb_sma = df['close'].rolling(window=bb_window, min_periods=1).mean()
+        bb_std_dev = df['close'].rolling(window=bb_window, min_periods=1).std()
+        df['bb_upper'] = bb_sma + (bb_std_dev * bb_std)
+        df['bb_lower'] = bb_sma - (bb_std_dev * bb_std)
+        df['bb_position'] = (df['close'] - df['bb_lower']) / (df['bb_upper'] - df['bb_lower'])
+        df['bb_position'] = df['bb_position'].fillna(0.5)
+        
+        # Stochastic Oscillator
+        def calculate_stochastic(high, low, close, window=14):
+            lowest_low = low.rolling(window=window, min_periods=1).min()
+            highest_high = high.rolling(window=window, min_periods=1).max()
+            stoch_k = 100 * (close - lowest_low) / (highest_high - lowest_low)
+            return stoch_k.fillna(50)
+        
+        df['stoch_k'] = calculate_stochastic(df['high'], df['low'], df['close'])
+        
+        # Momentum indicators
+        df['momentum_5'] = df['close'] / df['close'].shift(5) - 1
+        df['momentum_5'] = df['momentum_5'].fillna(0)
+        
+        # Fill any remaining NaN values
+        df = df.ffill().bfill()
+        
         return df
     
     def show_backtest_range(self, start_index, end_index):
@@ -232,13 +289,13 @@ class TradingDataManager:
         Returns:
             Price in original scale
         """
-        # Create dummy array with zeros for other features
-        dummy = np.zeros((1, 5))  # [hour_sin, open, high, low, close]
-        dummy[0, 4] = scaled_price  # close price is at index 4
+        # Create dummy array with zeros for all features (10 features + 1 target = 11 total)
+        dummy = np.zeros((1, len(self.feature_cols) + 1))  # [10 features + close]
+        dummy[0, -1] = scaled_price  # close price is at the last index
         
         # Inverse transform
         original = self.scaler.inverse_transform(dummy)
-        return original[0, 4]
+        return original[0, -1]  # Return the last column (close price)
     
     def get_price_at_index(self, index):
         """Get original price at specific index"""
