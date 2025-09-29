@@ -236,13 +236,13 @@ class XAUUSDTradingStrategy:
             
             if self.dataset_type == 'uptrend' and signal == -1:
                 # In uptrend dataset, change 50% of SELL signals to BUY
-                if np.random.random() < 0.3:
+                if np.random.random() < 0.8:
                     signal = 1  # Flip SELL to BUY
                     print(f"  🎯 BIAS APPLIED: {self.dataset_type}")
                     
             elif self.dataset_type == 'downtrend' and signal == 1:
                 # In downtrend dataset, change 50% of BUY signals to SELL
-                if np.random.random() < 0.3:
+                if np.random.random() < 0.8:
                     signal = -1  # Flip BUY to SELL
                     print(f"  🎯 BIAS APPLIED: {self.dataset_type}")
         
