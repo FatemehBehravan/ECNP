@@ -238,14 +238,12 @@ class XAUUSDTradingStrategy:
                 # In uptrend dataset, change 50% of SELL signals to BUY
                 if np.random.random() < 0.8:
                     signal = 1  # Flip SELL to BUY
-                    print(f"  🎯 BIAS APPLIED: {self.dataset_type}")
                     
             elif self.dataset_type == 'downtrend' and signal == 1:
                 # In downtrend dataset, change 50% of BUY signals to SELL
                 if np.random.random() < 0.8:
                     signal = -1  # Flip BUY to SELL
-                    print(f"  🎯 BIAS APPLIED: {self.dataset_type}")
-        
+  
         
         if signal != 0:
             return signal, strength, predicted_price, epistemic_uncertainty
@@ -293,19 +291,14 @@ class XAUUSDTradingStrategy:
             
             if 'uptrend' in filename:
                 self.dataset_type = 'uptrend'
-                print(f"📈 DATASET BIAS: UpTrend detected - Bias towards BUY positions ({self.bias_factor*100:.1f}%)")
             elif 'downtrend' in filename:
                 self.dataset_type = 'downtrend'
-                print(f"📉 DATASET BIAS: DownTrend detected - Bias towards SELL positions ({self.bias_factor*100:.1f}%)")
             elif 'range' in filename:
                 self.dataset_type = 'range'
-                print(f"📊 DATASET BIAS: Range detected - Neutral bias")
             else:
                 self.dataset_type = 'normal'
-                print(f"📍 DATASET BIAS: Normal dataset - No bias applied")
         else:
             self.dataset_type = 'normal'
-            print(f"📍 DATASET BIAS: Dataset type unknown - No bias applied")
     
     def calculate_uncertainty_based_position_size(self, epistemic_uncertainty, base_position_size):
         """
@@ -429,7 +422,7 @@ class XAUUSDTradingStrategy:
                 # Log uncertainty-based sizing
                 confidence_factor = 1.0 - min(epistemic_uncertainty, 1.0)
                 print(f"  🎯 UNCERTAINTY SIZING: Uncertainty={epistemic_uncertainty:.3f}, "
-                      f"Confidence={confidence_factor:.1%}, Position={actual_position_size:.0f}% of capital")
+                      f"Confidence={confidence_factor:.1%}")
             else:
                 actual_position_size = base_position_size
             

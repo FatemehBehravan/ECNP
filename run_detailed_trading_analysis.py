@@ -30,8 +30,8 @@ DATASET_FILE_PATH = "datasets/UpTrendStrategy_XAUUSD.csv"
 # ===================================================================
 # 🔧 GLOBAL TEST CONFIGURATION - CHANGE THESE FOR DIFFERENT TESTS
 # ===================================================================
-BACKTEST_START_INDEX = 1000   
-BACKTEST_END_INDEX = 3000    
+BACKTEST_START_INDEX = 4000   
+BACKTEST_END_INDEX = 5000    
 
 
 def analyze_trade_history(strategy, strategy_name, end_index=None):
